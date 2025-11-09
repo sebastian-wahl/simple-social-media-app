@@ -1,0 +1,32 @@
+# Ruff configuration (modern format)
+# Docs: https://docs.astral.sh/ruff/
+
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (logic / unused vars)
+    "I",   # import sorting
+    "B",   # flake8-bugbear (common bug patterns)
+    "UP"   # pyupgrade (modern syntax)
+]
+
+# Optional exclude patterns
+exclude = [
+    ".venv",
+    "__pycache__",
+    "migrations",
+    "tests",
+]
+
+
+[format]
+# formatter options
+quote-style = "double"          # enforce double quotes everywhere
+indent-style = "space"          # 4-space indentation
+line-ending = "lf"              # use LF line endings (cross-platform)
+skip-magic-trailing-comma = false
+docstring-code-format = true    # format code blocks in docstrings
+docstring-code-line-length = 80

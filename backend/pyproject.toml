@@ -1,0 +1,9 @@
+[build-system]                          # Section declaring the build backend + its requirements
+requires = ["setuptools>=68", "wheel"]  # Tools pip must install first to build this project
+build-backend = "setuptools.build_meta" # Tell pip to use setuptools as the build backend
+
+# ---- pytest configuration (so tests run smoothly) ----
+[tool.pytest.ini_options]
+pythonpath = ["src"]                  # Add backend/src to PYTHONPATH; allows `from social_media_app...` imports in tests
+addopts = "-q"                        # Default extra CLI options for pytest; -q = quiet output
+testpaths = ["tests"]                 # Where pytest should look for tests by default
