@@ -39,7 +39,7 @@ jobs:
 
       - name: Lint with Ruff
         run: |
-          ruff check backend --exit-zero=false --output-format=github
+          ruff check backend --exit-zero --output-format=github
 
       - name: Run tests
         run: |
