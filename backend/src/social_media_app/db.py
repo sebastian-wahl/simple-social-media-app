@@ -124,7 +124,10 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
 
     # Search
     if f.q:
-        stmt = stmt.where((Post.text.ilike(f"%{f.q}%")) | (Post.user.ilike(f"%{f.q}%")))
+        stmt = stmt.where(
+            (Post.text.ilike(f"%{f.q}%"))
+            | (Post.user.ilike(f"%{f.q}%"))
+        )
 
     # Rating filter
     if f.min_rating is not None:
@@ -163,12 +166,14 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
         # "relevance": simple heuristic -> rating, then recency
         stmt = stmt.order_by(Post.toe_rating.desc(), Post.created_at.desc())
 
-    # Total count for pagination
-    count_stmt = stmt.with_only_columns(func.count()).order_by(None)
+    # Wrap the filtered statement as a subquery and count its rows.
+    count_stmt = select(func.count()).select_from(stmt.subquery())
     total = session.exec(count_stmt).one() or 0
 
-    # Page of items
-    posts = session.exec(stmt.offset(f.offset).limit(f.limit)).all()
+    # Page of items (with limit/offset)
+    posts = session.exec(
+        stmt.offset(f.offset).limit(f.limit)
+    ).all()
 
     return posts, total
 
