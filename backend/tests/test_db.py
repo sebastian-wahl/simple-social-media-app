@@ -11,9 +11,11 @@ from sqlmodel import Session, create_engine
 from social_media_app.db import (
     PostFilter,
     TagWithCount,
+    add_comment_db,
     create_db_and_tables,
     create_post_db,
     get_post_db,
+    list_comments_db,
     list_posts_db,
     list_tags_db,
 )
@@ -196,3 +198,71 @@ def test_list_tags_db_counts(session: Session):
     assert by_name["blue"] == 1
     assert by_name["red"] == 1
     assert by_name["green"] == 1
+
+
+def test_list_comments_empty(session: Session):
+    """No comments exist yet → empty list."""
+    _seed_posts_for_list_tests(session)
+    post = get_post_db(session, 1)  # type: ignore
+    comments = list_comments_db(session, post.id)
+    assert comments == []
+
+
+def test_add_comment_creates_and_returns_comment(session: Session):
+    """Check that a comment is inserted, given an existing post."""
+    _seed_posts_for_list_tests(session)
+    post = get_post_db(session, 1)  # type: ignore
+
+    comment = add_comment_db(
+        session,
+        post_id=post.id,
+        user="alice",
+        text="Nice post!",
+    )
+
+    assert comment.id == 1
+    assert comment.post_id == post.id
+    assert comment.user == "alice"
+    assert comment.text == "Nice post!"
+
+# ---------------------------------------------------------------------------
+# Tests for comments
+# ---------------------------------------------------------------------------
+
+def test_list_comments_ordering(session: Session):
+    """
+    Comments must be returned oldest-first (ASC created_at ordering).
+    """
+    _seed_posts_for_list_tests(session)
+    post = get_post_db(session, 1)  # type: ignore
+
+    c1 = add_comment_db(session, post_id=post.id, user="u1", text="First!")
+    c2 = add_comment_db(session, post_id=post.id, user="u2", text="Second!")
+
+    comments = list_comments_db(session, post.id)
+
+    assert len(comments) == 2
+    assert comments[0].id == c1.id
+    assert comments[1].id == c2.id
+
+
+def test_comments_separated_by_post(session: Session):
+    """
+    Comments must belong to their posts and not mix between posts.
+    """
+    _seed_posts_for_list_tests(session)
+
+    p1 = get_post_db(session, 1)  # type: ignore
+    p2 = get_post_db(session, 2)  # type: ignore
+
+    add_comment_db(session, post_id=p1.id, user="u1", text="C1")
+    add_comment_db(session, post_id=p2.id, user="u2", text="C2")
+
+    comments_p1 = list_comments_db(session, p1.id)
+    comments_p2 = list_comments_db(session, p2.id)
+
+    assert len(comments_p1) == 1
+    assert len(comments_p2) == 1
+
+    assert comments_p1[0].text == "C1"
+    assert comments_p2[0].text == "C2"
