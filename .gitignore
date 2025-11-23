@@ -209,3 +209,4 @@ __marimo__/
 # Custom
 /Project.iml
 /.idea/
+/backend/src/social_media_app/social-media-app.db

@@ -2,3 +2,8 @@ sqlmodel
 sqlalchemy
 pytest
 ruff
+fastapi
+minio
+python-multipart  # needed by FastAPI for UploadFile / multipart/form-data
+python-dotenv
+uvicorn
