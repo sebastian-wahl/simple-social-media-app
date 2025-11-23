@@ -12,6 +12,7 @@ select = [
     "B",   # flake8-bugbear (common bug patterns)
     "UP"   # pyupgrade (modern syntax)
 ]
+ignore = ["B008"]
 
 # Optional exclude patterns
 exclude = [
