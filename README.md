@@ -1,50 +1,123 @@
-# Social Media App (Backend + Frontend)
+# Social Media App — Backend & Frontend
 
-This repository contains the initial backend setup for a social media–style application.  
-The backend is written in **Python** using **SQLModel** (built on top of SQLAlchemy) and currently uses an **in-memory SQLite** database for testing.  
-The frontend (React or Angular) will be added later.
+This repository hosts the backend for a social-media–style application built using:
+
+- **FastAPI** (API layer)
+- **SQLModel** (SQLAlchemy ORM)
+- **SQLite** for development / **PostgreSQL** in production
+- **MinIO** for image storage (S3 compatible)
+
+A frontend (React or Angular) will be implemented later.
 
 ---
 
-## Project Structure
+# Project Structure
+
 ```
 your-repo/
-├─ .venv/ Python virtual environment
+├─ .venv/                     # Python virtual env (local only)
+├─ .env.template             # Template for environment variables
 ├─ backend/
-│ ├─ src/
-│ │ └─ social_media_app/
-│ │  ├─ init.py
-│ │  ├─ models.py # SQLModel Post model
-│ │  └─ db.py # DB engine + CRUD helper functions
-│ ├─ tests/
-│ │ └─ test_db.py # Unit tests for Post + DB helper logic
-│ ├─ requirements.txt # Dependencies for backend
-│ ├─ pyproject.toml # pytest configuration (adds src/ to PYTHONPATH)
-| └─ ruff.toml # ruff configuration file
-├─ frontend/ # (to be implemented later)
-└─ .github/workflows/ # (CI configuration will go here)
+│  ├─ src/
+│  │  └─ social_media_app/
+│  │     ├─ __init__.py
+│  │     ├─ app.py          # FastAPI application
+│  │     ├─ config.py       # Environment + configuration loading
+│  │     ├─ main.py         # Uvicorn startup wrapper (python -m)
+│  │     ├─ models.py       # SQLModel models
+│  │     ├─ dtos.py         # DTOs for request/response + mapping helpers
+│  │     ├─ db.py           # Database access layer (CRUD + filters)
+│  │     └─ minio_db.py     # MinIO storage helper functions
+│  │
+│  ├─ tests/
+│  │  ├─ __init__.py
+│  │  ├─ test_api.py        # API-level tests
+│  │  ├─ test_db.py         # DB + CRUD tests
+│  │  └─ test_minio_db.py   # MinIO helper tests
+│  │
+│  ├─ requirements.txt      # Backend dependencies
+│  ├─ pyproject.toml        # pytest configuration (adds src to PYTHONPATH)
+│  └─ ruff.toml             # Linting + formatting configuration
+│
+├─ frontend/                 # To be implemented
+│   └─ ToDo.txt
+│
+└─ .github/workflows/        # GitHub Actions (CI)
 ```
-
 
 ---
 
-## Backend Setup
-1) **Create a virtual environment (recommended)**
+# Environment Configuration
+
+The backend uses environment variables to configure:
+
+- SQLite / PostgreSQL database
+- MinIO storage
+- FastAPI runtime settings
+
+A template exists at:
+
+```
+backend/.env.template
+```
+
+## Setup:
+
+1) **Copy the template**
+```
+cp backend/.env.template backend/.env
+```
+
+2) **Customize values** (SQLite is default):
+
+Example for local dev:
+```
+DATABASE_URL=sqlite:///social-media-app.db
+MINIO_ENABLED=false
+```
+
+Example when running MinIO & Postgres via Docker:
+```
+DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/appdb
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=post-images
+MINIO_ENABLED=true
+```
+
+## How env files are loaded
+
+The file `config.py` uses `python-dotenv` to load `.env` automatically:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()
+```
+
+Meaning:  
+Just create a `.env` file — no manual exporting needed.
+
+---
+
+# Backend Setup
+
+1) **Create a virtual environment**
 ```
 python -m venv .venv
 ```
-2) **Activate the environment**
-- macOS / Linux
+
+2) **Activate it**
+
+macOS / Linux:
 ```
 source .venv/bin/activate
 ```
 
-- Windows (PowerShell)
+Windows (PowerShell):
 ```
 .\.venv\Scripts\Activate
 ```
-
-You should see a (.venv) prefix in your terminal prompt.
 
 3) **Install dependencies**
 ```
@@ -52,73 +125,116 @@ pip install -r backend/requirements.txt
 ```
 
 ---
-## Running Tests (pytest)
-Run all backend tests:
+
+# Running the API
+
+### Option A — Using Uvicorn directly:
 ```
-# from repo root
-pytest -q backend
-# or from backend/
-pytest -q
+uvicorn social_media_app.app:app --reload
 ```
 
-Run a single test file:
+### Option B — Using the provided `main.py`:
 ```
-pytest -q backend/tests/test_db.py
-```
-
-Run a single test function:
-```
-pytest -q backend/tests/test_db.py::test_add_and_get_latest
+python -m social_media_app.main
 ```
 
-**Useful flags:**
-- -q — quiet output (short)
-- -v — verbose (shows each test name)
-- -k < expr > — run tests matching an expression
-```
-pytest -k latest -v backend
-```
-- -x — stop after first failure
-- -s — don’t capture stdout (see print output)
-
-Pytest is configured via `backend/pyproject.toml`.
+This loads env settings such as:
+- host
+- port
+- environment
+- reload mode
 
 ---
 
-## Linting & Formatting (Ruff)
+# Testing (pytest)
 
-Ruff handles linting, import sorting, and formatting.
+Run all backend tests:
 
-### Core commands
+```
+pytest -q backend
+```
 
-**Lint only (no changes):**
+or:
+```
+pytest -q
+```
+
+Run a specific file:
+
+```
+pytest backend/tests/test_db.py -q
+```
+
+Run a single test function:
+
+```
+pytest backend/tests/test_db.py::test_add_and_get_latest
+```
+
+Useful flags:
+
+- `-q` quiet output
+- `-v` verbose
+- `-k <expr>` filter by test name
+- `-s` show print output
+- `-x` stop after first failure
+
+Pytest configuration lives in `backend/pyproject.toml`.
+
+---
+
+# Linting & Formatting (Ruff)
+
+Ruff performs linting, import-sorting, and formatting.
+
+### Lint only:
 ```
 ruff check backend
 ```
 
-**Lint and auto-fix (where safe):**
+### Lint + auto-fix:
 ```
 ruff check backend --fix
 ```
 
-**Format code (like Black):**
+### Format:
 ```
 ruff format backend
 ```
 
-**Verify formatting (CI-friendly, no changes):**
+### Format check (CI-safe):
 ```
 ruff format --check backend
 ```
 
-**Typical local workflow**
+Typical workflow:
+
 ```
-# Auto-fix lint issues
 ruff check backend --fix
-# Format code
 ruff format backend
-# Run tests
 pytest -q backend
 ```
 
-Ruff is configured in `backend/ruff.toml`.
+Configured via `backend/ruff.toml`.
+
+---
+
+# MinIO Image Storage
+
+- `/uploads/images` handles file uploads.
+- Backend stores images in MinIO (or uses dummy mode if MINIO_ENABLED=false).
+- `/posts` uses the `image_path` returned from upload.
+
+---
+
+# Notes for development
+
+- Always run `ruff check` + `ruff format` before committing.
+- `.env` should **NEVER** be committed — only `.env.template`.
+- Use `MINIO_ENABLED=false` during early development.
+
+---
+
+# Frontend (placeholder)
+
+The frontend folder exists for future React / Angular implementation.
