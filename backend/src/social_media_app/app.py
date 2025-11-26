@@ -13,6 +13,8 @@ from fastapi import (
 )
 from sqlmodel import Session
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from .db import (
     PostFilter,
     add_comment_db,
@@ -69,6 +71,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Social Media API", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # =============================================================================
 # Routes: Image Upload (MinIO)
