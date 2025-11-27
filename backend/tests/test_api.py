@@ -158,12 +158,10 @@ def test_list_posts_filter_by_tag(client: TestClient):
     data = res.json()
     texts = sorted(item["text"] for item in data["items"])
 
-    # Instead of asserting exact total, just assert that posts
-    # with the "blue" tag are present in the results.
+    # we check if the blue posts are in the results
+    assert len(texts) == 2
     assert "blue one" in texts
     assert "both" in texts
-    # Optional: ensure "red one" is not there, if your filter should exclude it
-    #assert "red one" not in texts
 
 
 

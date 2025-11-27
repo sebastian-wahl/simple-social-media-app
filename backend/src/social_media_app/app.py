@@ -10,6 +10,7 @@ from fastapi import (
     HTTPException,
     UploadFile,
     status,
+    Query,
 )
 from sqlmodel import Session
 
@@ -135,7 +136,7 @@ def create_post(payload: PostCreateDTO, session: Session = Depends(get_session))
 
 @app.get("/posts", response_model=PostPageDTO)
 def list_posts(
-    filter_dto: PostFilterDTO = Depends(),
+    filter_dto: PostFilterDTO = Query(),
     session: Session = Depends(get_session),
 ):
     """
@@ -163,7 +164,7 @@ def list_posts(
 
 @app.get("/posts/search", response_model=PostPageDTO)
 def search_posts(
-    filter_dto: PostFilterDTO = Depends(),
+    filter_dto: PostFilterDTO = Query(),
     session: Session = Depends(get_session),
 ):
     """
