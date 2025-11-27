@@ -15,34 +15,70 @@ A frontend (React or Angular) will be implemented later.
 
 ```
 your-repo/
-├─ .venv/                     # Python virtual env (local only)
-├─ .env.template             # Template for environment variables
+├─ .venv/                       # Python virtual env (local only)
+├─ .env.template                # Template for environment variables
+├─ .env                         # for the environment variables
 ├─ backend/
 │  ├─ src/
 │  │  └─ social_media_app/
 │  │     ├─ __init__.py
-│  │     ├─ app.py          # FastAPI application
-│  │     ├─ config.py       # Environment + configuration loading
-│  │     ├─ main.py         # Uvicorn startup wrapper (python -m)
-│  │     ├─ models.py       # SQLModel models
-│  │     ├─ dtos.py         # DTOs for request/response + mapping helpers
-│  │     ├─ db.py           # Database access layer (CRUD + filters)
-│  │     └─ minio_db.py     # MinIO storage helper functions
+│  │     ├─ app.py              # FastAPI application
+│  │     ├─ config.py           # Environment + configuration loading
+│  │     ├─ main.py             # Uvicorn startup wrapper (python -m)
+│  │     ├─ models.py           # SQLModel models
+│  │     ├─ dtos.py             # DTOs for request/response + mapping helpers
+│  │     ├─ db.py               # Database access layer (CRUD + filters)
+│  │     └─ minio_db.py         # MinIO storage helper functions
 │  │
 │  ├─ tests/
 │  │  ├─ __init__.py
-│  │  ├─ test_api.py        # API-level tests
-│  │  ├─ test_db.py         # DB + CRUD tests
-│  │  └─ test_minio_db.py   # MinIO helper tests
+│  │  ├─ test_api.py            # API-level tests
+│  │  ├─ test_db.py             # DB + CRUD tests
+│  │  └─ test_minio_db.py       # MinIO helper tests
 │  │
-│  ├─ requirements.txt      # Backend dependencies
-│  ├─ pyproject.toml        # pytest configuration (adds src to PYTHONPATH)
-│  └─ ruff.toml             # Linting + formatting configuration
+│  ├─ requirements.txt          # Backend dependencies
+│  ├─ pyproject.toml            # pytest configuration (adds src to PYTHONPATH)
+│  └─ ruff.toml                 # Linting + formatting configuration
 │
-├─ frontend/                 # To be implemented
-│   └─ ToDo.txt
+├─ frontend/                
+│   ├─ node_modules             # modules created from node.js
+│   ├─ pic                      # Logo
+│   ├─ public                   # vite.svg
+│   ├─ src/                 
+│   │  ├─ api/
+│   │  │  ├─ client.ts          # client env
+│   │  │  ├─ dto.ts             # DTOs for Pages / Comments / Posts
+│   │  │  ├─ posts.ts           # functions for posting / listing Posts / Comments etc.
+│   │  │  └─ tags.ts            # list tags
+│   │  ├─ assets/
+│   │  │  └─ react.svg          # react pic
+│   │  ├─ components/
+│   │  │  ├─ CommentForm.tsx    # Form for the Comments
+│   │  │  ├─ CommentList.tsx    # Lists all the comments
+│   │  │  ├─ PostCard.tsx       # Card for the posts
+│   │  │  ├─ RatingStars.tsx    # Card for the Rating Stars feature
+│   │  │  └─ TagFilter.tsx      # Function for the Filter
+│   │  ├─ pages/
+│   │  │  ├─ CreatePostPage.tsx # Creates the Post Page Page
+│   │  │  ├─ FeedPage.tsx       # Creates the Page for the Feeds 
+│   │  │  └─ PostDetailPage.tsx # Creates Page for the Post Details
+│   │  ├─ style
+│   │  │  └─ index.css          # Cosmetics
+│   │  ├─ App.css               # Cosmetics App
+│   │  ├─ App.tsx               # Main App.tsx
+│   │  ├─ index.css             # Main Cosmetics Page
+│   │  └─ main.tsx              # Main Page
+│   ├─ .env.development         # env data
+│   ├─ eslint.config.js         # config
+│   ├─ index.html               # main index
+│   ├─ package-lock.json        # versions
+│   ├─ package.json             # package informations
+│   ├─ postcss.config.cjs       # modules tailwindcss prefixer
+│   ├─ tailwind.config.cjs      # tailwind config
+│   ├─ tsconfig.app.json        # config json
+│   └─ vite.config.ts           # vite config
 │
-└─ .github/workflows/        # GitHub Actions (CI)
+└─ .github/workflows/           # GitHub Actions (CI)
 ```
 
 ---
