@@ -1,15 +1,86 @@
+version: "3.9"
+
 services:
+  db:
+    image: postgres:latest
+    container_name: social-media-db
+    restart: unless-stopped
+
+    env_file:
+      - ./.env
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+    volumes:
+      - ./db/postgres-data:/var/lib/postgresql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    # HEALTHCHECK
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
   minio:
     image: minio/minio:latest
-    container_name: minio
+    container_name: minio-db
     restart: unless-stopped
+
+    env_file:
+      - ./.env
+
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_CONSOLE_ADDRESS: ":9001"
-    command: server /data 
+
+    command: server /data
+
     ports:
-      - "9000:9000"
-      - "9002:9001"
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+
     volumes:
-      - ./minio-data:/datad
+      - ./db/minio-data:/data
+
+    # HEALTHCHECK
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    image: social-media-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: social-media-api
+    restart: unless-stopped
+
+    env_file:
+      - ./.env
+
+    environment:
+      DATABASE_URL: >-
+        postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MINIO_ENDPOINT: minio:9000
+
+    # backend waits until db and minio report "healthy"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+    ports:
+      - "8000:8000"
