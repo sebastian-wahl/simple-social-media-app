@@ -7,4 +7,5 @@ minio
 python-multipart  # needed by FastAPI for UploadFile / multipart/form-data
 python-dotenv
 uvicorn
+httpx # needed by TestClient
 psycopg[binary] # needed for psql connection
