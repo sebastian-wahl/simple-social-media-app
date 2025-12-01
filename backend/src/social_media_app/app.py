@@ -11,9 +11,8 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlmodel import Session
-
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Session
 
 from .db import (
     PostFilter,
