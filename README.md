@@ -91,7 +91,7 @@ uvicorn social_media_app.app:app --reload
 
 ---
 
-### 💡 Why Backend-from-Dockerfile Is Not Suited for Development
+### Why Backend-from-Dockerfile Is Not Suited for Development
 
 When the backend is started via the Dockerfile:
 
