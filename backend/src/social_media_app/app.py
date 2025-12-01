@@ -169,36 +169,6 @@ def list_posts(
     return PostPageDTO(items=items, meta=meta)
 
 
-@app.get("/posts/search", response_model=PostPageDTO)
-def search_posts(
-    filter_dto: PostFilterDTO = Depends(),
-    session: Session = Depends(get_session),
-):
-    """
-    Search endpoint that reuses the same filter object.
-
-    We enforce that q must be provided here, but otherwise the filter rules
-    are the same as for /posts.
-    """
-    if not filter_dto.q:
-        raise HTTPException(status_code=400, detail="Query parameter 'q' is required.")
-
-    f = PostFilter(
-        q=filter_dto.q,
-        tags=filter_dto.tags,
-        match_all=filter_dto.match_all,
-        min_rating=filter_dto.min_rating,
-        max_rating=filter_dto.max_rating,
-        limit=filter_dto.limit,
-        offset=filter_dto.offset,
-        order_by=filter_dto.order_by,
-    )
-    posts, total = list_posts_db(session, f)
-    items = [post_to_dto(p) for p in posts]
-    meta = PageMetaDTO(total=total, limit=f.limit, offset=f.offset)
-    return PostPageDTO(items=items, meta=meta)
-
-
 @app.get("/posts/{post_id}", response_model=PostReadDTO)
 def get_post(post_id: int, session: Session = Depends(get_session)):
     post = get_post_db(session, post_id)
