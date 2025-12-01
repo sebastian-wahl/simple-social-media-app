@@ -61,11 +61,11 @@ cp .env.template .env
 
 ## Docker Compose (Local Development Stack)
 
-The `docker-compose.yml` spins up:
+The `docker-compose.yml` provides the complete backend infrastructure:
 
-- **PostgreSQL**
-- **MinIO**
-- **Backend API (FastAPI)**
+- **PostgreSQL database**
+- **MinIO (S3-compatible storage)**
+- **Backend API (FastAPI)** — optional, controlled via `.env`
 
 Run all services:
 
@@ -73,26 +73,45 @@ Run all services:
 docker compose up --build
 ```
 
-### ⚠️ Note for Development
+---
 
-When using the API through Docker:
+### Backend Startup Control
 
-- **Every backend code change requires rebuilding the image**,  
-  because the Dockerfile copies source code into the container image.
+The backend API container can be enabled/disabled using a flag inside `.env`:
 
-So for active development, prefer running FastAPI directly:
+```env
+RUN_BACKEND_FROM_DOCKERFILE=true
+```
+
+If you set to false, then **only Postgres and MinIO** will start, and you can run the backend locally in development mode with auto‑reload:
 
 ```bash
 uvicorn social_media_app.app:app --reload
 ```
 
-And reserve Docker Compose for:
+---
 
-- full-stack testing,
-- integration tests,
-- CI,
-- running Postgres + MinIO,
-- demonstrating the packaged application.
+### Why Backend-from-Dockerfile Is Not Suited for Development
+
+When the backend is started via the Dockerfile:
+
+- The source code is copied into the image during the build step
+- You must rebuild the image for every change:
+
+```bash
+docker compose build backend
+```
+
+- Live reload does **not** work inside Docker
+
+This mode is best for:
+
+- Full-stack integration tests
+- Production-like testing
+- CI pipelines
+- Demonstrations with real database + MinIO
+
+For rapid development, **run Postgres + MinIO in Docker**, and run the **backend locally** with Uvicorn's reload mode.
 
 ---
 

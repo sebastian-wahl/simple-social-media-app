@@ -67,6 +67,9 @@ services:
     container_name: social-media-api
     restart: unless-stopped
 
+    profiles:
+      - ${RUN_BACKEND_FROM_DOCKERFILE}
+
     env_file:
       - ./.env
 
