@@ -25,6 +25,7 @@ def make_engine():
     # Dev/test default: SQLite file
     return create_engine("sqlite:///social-media-app.db", echo=False)
 
+
 def get_session() -> Iterator[Session]:
     """
     FastAPI dependency: yields a Session per request.
@@ -124,10 +125,7 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
 
     # Search
     if f.q:
-        stmt = stmt.where(
-            (Post.text.ilike(f"%{f.q}%"))
-            | (Post.user.ilike(f"%{f.q}%"))
-        )
+        stmt = stmt.where((Post.text.ilike(f"%{f.q}%")) | (Post.user.ilike(f"%{f.q}%")))
 
     # Rating filter
     if f.min_rating is not None:
@@ -171,9 +169,7 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
     total = session.exec(count_stmt).one() or 0
 
     # Page of items (with limit/offset)
-    posts = session.exec(
-        stmt.offset(f.offset).limit(f.limit)
-    ).all()
+    posts = session.exec(stmt.offset(f.offset).limit(f.limit)).all()
 
     return posts, total
 

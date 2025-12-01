@@ -1,276 +1,224 @@
 # Social Media App — Backend & Frontend
 
-This repository hosts the backend for a social-media–style application built using:
+A simple social-media–style application built with:
 
-- **FastAPI** (API layer)
-- **SQLModel** (SQLAlchemy ORM)
-- **SQLite** for development / **PostgreSQL** in production
-- **MinIO** for image storage (S3 compatible)
+- **FastAPI** (API)
+- **SQLModel** / SQLAlchemy ORM
+- **PostgreSQL** (via Docker) or SQLite (local dev)
+- **MinIO** (S3-compatible object storage)
+- React/Vite Frontend
 
-A frontend (React or Angular) will be implemented later.
+This repository contains both backend and frontend code, plus a Docker-based local development stack.
 
----
-
-# Project Structure
+## Project Structure
 
 ```
-your-repo/
-├─ .venv/                       # Python virtual env (local only)
-├─ .env.template                # Template for environment variables
-├─ .env                         # for the environment variables
+project-root/
+├─ .env                     # All environment variables live here
+├─ .env.template            # Example configuration
+├─ docker-compose.yml       # Local stack (API + Postgres + MinIO)
+
 ├─ backend/
+│  ├─ Dockerfile
+│  ├─ requirements.txt
+│  ├─ wait-for-services.sh
+│  └─ src/
+│     └─ social_media_app/
+│         ├─ app.py
+│         ├─ config.py
+│         ├─ db.py
+│         ├─ dtos.py
+│         ├─ main.py
+│         ├─ minio_db.py
+│         └─ models.py
+
+├─ db/
+│  ├─ init.sql
+│  ├─ postgres-data/
+│  └─ minio-data/
+
+├─ frontend/
+│  ├─ public/
 │  ├─ src/
-│  │  └─ social_media_app/
-│  │     ├─ __init__.py
-│  │     ├─ app.py              # FastAPI application
-│  │     ├─ config.py           # Environment + configuration loading
-│  │     ├─ main.py             # Uvicorn startup wrapper (python -m)
-│  │     ├─ models.py           # SQLModel models
-│  │     ├─ dtos.py             # DTOs for request/response + mapping helpers
-│  │     ├─ db.py               # Database access layer (CRUD + filters)
-│  │     └─ minio_db.py         # MinIO storage helper functions
-│  │
-│  ├─ tests/
-│  │  ├─ __init__.py
-│  │  ├─ test_api.py            # API-level tests
-│  │  ├─ test_db.py             # DB + CRUD tests
-│  │  └─ test_minio_db.py       # MinIO helper tests
-│  │
-│  ├─ requirements.txt          # Backend dependencies
-│  ├─ pyproject.toml            # pytest configuration (adds src to PYTHONPATH)
-│  └─ ruff.toml                 # Linting + formatting configuration
-│
-├─ frontend/                
-│   ├─ node_modules             # modules created from node.js
-│   ├─ pic                      # Logo
-│   ├─ public                   # vite.svg
-│   ├─ src/                 
-│   │  ├─ api/
-│   │  │  ├─ client.ts          # client env
-│   │  │  ├─ dto.ts             # DTOs for Pages / Comments / Posts
-│   │  │  ├─ posts.ts           # functions for posting / listing Posts / Comments etc.
-│   │  │  └─ tags.ts            # list tags
-│   │  ├─ assets/
-│   │  │  └─ react.svg          # react pic
-│   │  ├─ components/
-│   │  │  ├─ CommentForm.tsx    # Form for the Comments
-│   │  │  ├─ CommentList.tsx    # Lists all the comments
-│   │  │  ├─ PostCard.tsx       # Card for the posts
-│   │  │  ├─ RatingStars.tsx    # Card for the Rating Stars feature
-│   │  │  └─ TagFilter.tsx      # Function for the Filter
-│   │  ├─ pages/
-│   │  │  ├─ CreatePostPage.tsx # Creates the Post Page Page
-│   │  │  ├─ FeedPage.tsx       # Creates the Page for the Feeds 
-│   │  │  └─ PostDetailPage.tsx # Creates Page for the Post Details
-│   │  ├─ style
-│   │  │  └─ index.css          # Cosmetics
-│   │  ├─ App.css               # Cosmetics App
-│   │  ├─ App.tsx               # Main App.tsx
-│   │  ├─ index.css             # Main Cosmetics Page
-│   │  └─ main.tsx              # Main Page
-│   ├─ .env.development         # env data
-│   ├─ eslint.config.js         # config
-│   ├─ index.html               # main index
-│   ├─ package-lock.json        # versions
-│   ├─ package.json             # package informations
-│   ├─ postcss.config.cjs       # modules tailwindcss prefixer
-│   ├─ tailwind.config.cjs      # tailwind config
-│   ├─ tsconfig.app.json        # config json
-│   └─ vite.config.ts           # vite config
-│
-└─ .github/workflows/           # GitHub Actions (CI)
+│  ├─ package.json
+│  └─ vite.config.ts
 ```
 
+## Environment Configuration
+
+Your full environment lives in one root-level `.env` file:
+
+```
+project-root/.env
+```
+
+Create it:
+
+```bash
+cp .env.template .env
+```
 ---
 
-# Environment Configuration
+## Docker Compose (Local Development Stack)
 
-The backend uses environment variables to configure:
+The `docker-compose.yml` spins up:
 
-- SQLite / PostgreSQL database
-- MinIO storage
-- FastAPI runtime settings
+- **PostgreSQL**
+- **MinIO**
+- **Backend API (FastAPI)**
 
-A template exists at:
+Run all services:
 
-```
-backend/.env.template
-```
-
-## Setup:
-
-1) **Copy the template**
-```
-cp backend/.env.template backend/.env
+```bash
+docker compose up --build
 ```
 
-2) **Customize values** (SQLite is default):
+### ⚠️ Note for Development
 
-Example for local dev:
-```
-DATABASE_URL=sqlite:///social-media-app.db
-MINIO_ENABLED=false
-```
+When using the API through Docker:
 
-Example when running MinIO & Postgres via Docker:
-```
-DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/appdb
-MINIO_ENDPOINT=minio:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=post-images
-MINIO_ENABLED=true
-```
+- **Every backend code change requires rebuilding the image**,  
+  because the Dockerfile copies source code into the container image.
 
-## How env files are loaded
+So for active development, prefer running FastAPI directly:
 
-The file `config.py` uses `python-dotenv` to load `.env` automatically:
-
-```python
-from dotenv import load_dotenv
-load_dotenv()
-```
-
-Meaning:  
-Just create a `.env` file — no manual exporting needed.
-
----
-
-# Backend Setup
-
-1) **Create a virtual environment**
-```
-python -m venv .venv
-```
-
-2) **Activate it**
-
-macOS / Linux:
-```
-source .venv/bin/activate
-```
-
-Windows (PowerShell):
-```
-.\.venv\Scripts\Activate
-```
-
-3) **Install dependencies**
-```
-pip install -r backend/requirements.txt
-```
-
----
-
-# Running the API
-
-### Option A — Using Uvicorn directly:
-```
+```bash
 uvicorn social_media_app.app:app --reload
 ```
 
-### Option B — Using the provided `main.py`:
-```
-python -m social_media_app.main
-```
+And reserve Docker Compose for:
 
-This loads env settings such as:
-- host
-- port
-- environment
-- reload mode
+- full-stack testing,
+- integration tests,
+- CI,
+- running Postgres + MinIO,
+- demonstrating the packaged application.
 
 ---
 
-# Testing (pytest)
+## Backend Development
 
-Run all backend tests:
+Create venv:
 
-```
-pytest -q backend
-```
-
-or:
-```
-pytest -q
+```bash
+python -m venv .venv
+source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate
+pip install -r backend/requirements.txt
 ```
 
-Run a specific file:
+Run API:
 
+```bash
+uvicorn social_media_app.app:app --reload
 ```
-pytest backend/tests/test_db.py -q
-```
-
-Run a single test function:
-
-```
-pytest backend/tests/test_db.py::test_add_and_get_latest
-```
-
-Useful flags:
-
-- `-q` quiet output
-- `-v` verbose
-- `-k <expr>` filter by test name
-- `-s` show print output
-- `-x` stop after first failure
-
-Pytest configuration lives in `backend/pyproject.toml`.
 
 ---
 
-# Linting & Formatting (Ruff)
+## API Docker Image
 
-Ruff performs linting, import-sorting, and formatting.
-
-### Lint only:
-```
-ruff check backend
-```
-
-### Lint + auto-fix:
-```
-ruff check backend --fix
-```
-
-### Format:
-```
-ruff format backend
-```
-
-### Format check (CI-safe):
-```
-ruff format --check backend
-```
-
-Typical workflow:
+The backend image is built using:
 
 ```
-ruff check backend --fix
-ruff format backend
-pytest -q backend
+backend/Dockerfile
 ```
 
-Configured via `backend/ruff.toml`.
+Build manually:
+
+```bash
+docker build -t social-media-backend -f backend/Dockerfile .
+```
+
+Run manually:
+
+```bash
+docker run -p 8000:8000 --env-file .env social-media-backend
+```
 
 ---
 
-# MinIO Image Storage
+## Database Initialization (PostgreSQL)
 
+The initialization script is located at:
+
+```
+db/init.sql
+```
+
+This script:
+
+- Drops all tables (development mode)
+- Recreates schema from SQLModel definitions
+- Inserts optional test data (commented out)
+
+It runs **only the first time a fresh database volume is created**.
+
+Reset database:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+---
+
+## MinIO
+
+MinIO is used to store uploaded images.
 - `/uploads/images` handles file uploads.
 - Backend stores images in MinIO (or uses dummy mode if MINIO_ENABLED=false).
 - `/posts` uses the `image_path` returned from upload.
 
+Health endpoint:
+
+```
+http://localhost:9002
+```
+
+API endpoint:
+
+```
+http://localhost:9000
+```
+
+Credentials come from `.env`.
+
 ---
 
-# Notes for development
+## Frontend
 
-- Always run `ruff check` + `ruff format` before committing.
-- `.env` should **NEVER** be committed — only `.env.template`.
-- Use `MINIO_ENABLED=false` during early development.
+The frontend folder is unchanged from the original structure and includes a full Vite + React setup.
+
+Run development frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 
-# Frontend (placeholder)
+## Testing
 
-The frontend folder exists for future React / Angular implementation.
+Run tests:
+
+```bash
+pytest -q
+```
+
+---
+
+## Linting (Ruff)
+
+```
+ruff check backend --fix
+ruff format backend
+```
+
+---
+
+## Notes
+
+- `.env` should never be committed.
+- The Docker stack is ideal for full integration testing or demo deployments.
+- For rapid backend development, use Uvicorn directly with reload mode.

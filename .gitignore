@@ -210,3 +210,5 @@ __marimo__/
 /Project.iml
 /.idea/
 /backend/src/social_media_app/social-media-app.db
+/db/postgres-data/
+/db/minio-data/

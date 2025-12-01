@@ -225,9 +225,11 @@ def test_add_comment_creates_and_returns_comment(session: Session):
     assert comment.user == "alice"
     assert comment.text == "Nice post!"
 
+
 # ---------------------------------------------------------------------------
 # Tests for comments
 # ---------------------------------------------------------------------------
+
 
 def test_list_comments_ordering(session: Session):
     """
