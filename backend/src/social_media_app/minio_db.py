@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import os
 import uuid
 
 from fastapi import UploadFile
@@ -11,22 +10,16 @@ from minio.error import S3Error
 from social_media_app.config import settings
 
 
-# ToDo configure correctly once docker is finished
 def _get_minio_client() -> Minio:
     """
-    Create a MinIO client using environment variables.
-
-    Expected env vars:
-      - MINIO_ENDPOINT
-      - MINIO_ACCESS_KEY
-      - MINIO_SECRET_KEY
-      - MINIO_SECURE
-      - MINIO_BUCKET
+    Create a MinIO client based on values from settings.
+    All MinIO configuration values originate from config.py, which
+    in turn reads the global .env file.
     """
-    endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-    access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-    secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    secure = os.getenv("MINIO_SECURE", "false").lower() == "true"
+    endpoint = settings.MINIO_ENDPOINT  # e.g. "minio:9000"
+    access_key = settings.MINIO_ROOT_USER or "minioadmin"
+    secret_key = settings.MINIO_ROOT_PASSWORD or "minioadmin"
+    secure = settings.MINIO_SECURE
 
     return Minio(
         endpoint=endpoint,
@@ -38,62 +31,87 @@ def _get_minio_client() -> Minio:
 
 def _ensure_bucket(client: Minio, bucket: str) -> None:
     """
-    Make sure the target bucket exists.
-    Dev-friendly: create bucket automatically if missing.
+    Ensure that the bucket exists.
+    Uses bucket_exists() when available; otherwise falls back to stat_object().
+    Authentication or permission errors are raised immediately.
     """
-    if not client.bucket_exists(bucket):
-        client.make_bucket(bucket)
+    # Modern MinIO SDKs provide bucket_exists()
+    bucket_exists = getattr(client, "bucket_exists", None)
+
+    if callable(bucket_exists):
+        try:
+            if not client.bucket_exists(bucket):
+                try:
+                    client.make_bucket(bucket)
+                except S3Error as exc:
+                    code = (exc.code or "").lower()
+                    if "bucketalreadyownedbyyou" in code or "bucketalreadyexists" in code:
+                        return
+                    raise
+            return
+        except S3Error as exc:
+            code = (exc.code or "").lower()
+            if "invalidaccesskeyid" in code or "accessdenied" in code:
+                raise
+
+    # Fallback: try stat_object
+    try:
+        client.stat_object(bucket, "__bucket_probe__")
+        return
+    except S3Error as exc:
+        code = (exc.code or "").lower()
+
+        if "nosuchbucket" in code or "resourcenotfound" in code:
+            try:
+                client.make_bucket(bucket)
+                return
+            except S3Error as make_exc:
+                make_code = (make_exc.code or "").lower()
+                if "bucketalreadyownedbyyou" in make_code or "bucketalreadyexists" in make_code:
+                    return
+                raise
+
+        if "invalidaccesskeyid" in code or "accessdenied" in code:
+            raise
+
+        raise
 
 
 def _guess_extension(content_type: str | None) -> str:
     """
-    Guess a simple file extension from content type.
+    Infer a simple file extension based on the content type
     """
     if not content_type:
         return ".bin"
 
     ct = content_type.lower()
-
     if "jpeg" in ct or "jpg" in ct:
         return ".jpg"
     if "png" in ct:
         return ".png"
     if "gif" in ct:
         return ".gif"
-
     return ".bin"
 
 
 def upload_image_to_minio(file: UploadFile) -> str:
     """
-    Upload a single image file to MinIO and return the object key (image_path).
-
-    Flow:
-      1. Create MinIO client.
-      2. Ensure bucket exists.
-      3. Generate object key: "posts/<uuid>.ext".
-      4. Read file bytes.
-      5. Upload to MinIO.
-      6. Return key for DB storage.
-
-    NOTE:
-      This reads the whole file into memory.
-      For large files, switch to streaming upload.
+    Upload an image file to MinIO and return the object key (image_path)
+    - When MINIO_ENABLED=false, a dummy key is returned
+    - When enabled, ensures the bucket exists and uploads the file
     """
-
-    # If MINIO_ENABLED=false, just return a fake key so the rest of the flow works.
     if not settings.MINIO_ENABLED:
         ext = _guess_extension(file.content_type)
         return f"dummy/{uuid.uuid4().hex}{ext}"
+
     client = _get_minio_client()
-    bucket = os.getenv("MINIO_BUCKET", "post-images")
+    bucket = settings.MINIO_BUCKET or "post-images"
 
     _ensure_bucket(client, bucket)
 
     ext = _guess_extension(file.content_type)
     key = f"posts/{uuid.uuid4().hex}{ext}"
 
-    # Read all bytes (simple approach)
     data_bytes = file.file.read()
     data_stream = io.BytesIO(data_bytes)
 
@@ -113,19 +131,20 @@ def upload_image_to_minio(file: UploadFile) -> str:
 
 def image_exists_in_minio(image_path: str) -> bool:
     """
-    Check whether an object exists in MinIO.
-
-    Returns:
-        True if the object exists, otherwise False.
+    Check if an object exists in MinIO
+    - When MINIO_ENABLED=false, always return True (dummy mode)
     """
-
     if not settings.MINIO_ENABLED:
         return True
 
     client = _get_minio_client()
-    bucket = os.getenv("MINIO_BUCKET", "post-images")
+    bucket = settings.MINIO_BUCKET or "post-images"
+
     try:
         client.stat_object(bucket, image_path)
         return True
-    except S3Error:
-        return False
+    except S3Error as exc:
+        code = (exc.code or "").lower()
+        if "nosuchkey" in code or "nosuchbucket" in code or "resourcenotfound" in code:
+            return False
+        raise

@@ -12,6 +12,7 @@ from fastapi import (
     status,
     Query,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
 from .db import (
@@ -70,6 +71,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Social Media API", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # =============================================================================
 # Routes: Image Upload (MinIO)
@@ -146,36 +154,6 @@ def list_posts(
     - Builds a PostFilter (DB-layer filter object)
     - DB function list_posts_db() does all query logic (search, tags, rating)
     """
-    f = PostFilter(
-        q=filter_dto.q,
-        tags=filter_dto.tags,
-        match_all=filter_dto.match_all,
-        min_rating=filter_dto.min_rating,
-        max_rating=filter_dto.max_rating,
-        limit=filter_dto.limit,
-        offset=filter_dto.offset,
-        order_by=filter_dto.order_by,
-    )
-    posts, total = list_posts_db(session, f)
-    items = [post_to_dto(p) for p in posts]
-    meta = PageMetaDTO(total=total, limit=f.limit, offset=f.offset)
-    return PostPageDTO(items=items, meta=meta)
-
-
-@app.get("/posts/search", response_model=PostPageDTO)
-def search_posts(
-    filter_dto: PostFilterDTO = Query(),
-    session: Session = Depends(get_session),
-):
-    """
-    Search endpoint that reuses the same filter object.
-
-    We enforce that q must be provided here, but otherwise the filter rules
-    are the same as for /posts.
-    """
-    if not filter_dto.q:
-        raise HTTPException(status_code=400, detail="Query parameter 'q' is required.")
-
     f = PostFilter(
         q=filter_dto.q,
         tags=filter_dto.tags,
