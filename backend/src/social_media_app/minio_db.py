@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import uuid
+import os
 
 from fastapi import UploadFile
 from minio import Minio
@@ -105,7 +106,7 @@ def upload_image_to_minio(file: UploadFile) -> str:
         return f"dummy/{uuid.uuid4().hex}{ext}"
 
     client = _get_minio_client()
-    bucket = settings.MINIO_BUCKET or "post-images"
+    bucket = os.getenv("MINIO_BUCKET") or settings.MINIO_BUCKET or "post-images"
 
     _ensure_bucket(client, bucket)
 
@@ -138,7 +139,7 @@ def image_exists_in_minio(image_path: str) -> bool:
         return True
 
     client = _get_minio_client()
-    bucket = settings.MINIO_BUCKET or "post-images"
+    bucket = os.getenv("MINIO_BUCKET") or settings.MINIO_BUCKET or "post-images"
 
     try:
         client.stat_object(bucket, image_path)

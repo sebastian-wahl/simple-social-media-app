@@ -127,11 +127,17 @@ def test_list_posts_pagination_and_meta(client: TestClient):
     assert data["meta"]["offset"] == 0
 
 
-def test_search_posts_requires_q(client: TestClient):
-    # Missing q should produce 400
-    res = client.get("/posts/search")
-    assert res.status_code == 400
-    assert "Query parameter 'q' is required" in res.json()["detail"]
+def test_list_posts_without_q_returns_all(client: TestClient):
+    p1 = _create_post_via_api(client, text="kittens and puppies")
+    p2 = _create_post_via_api(client, text="only puppies here")
+
+    res = client.get("/posts")  # no q parameter
+    assert res.status_code == 200
+
+    data = res.json()
+    assert data["meta"]["total"] == 2
+    texts = {item["text"] for item in data["items"]}
+    assert texts == {"kittens and puppies", "only puppies here"}
 
 
 def test_search_posts_by_text(client: TestClient):
@@ -139,13 +145,15 @@ def test_search_posts_by_text(client: TestClient):
     _create_post_via_api(client, text="only puppies here")
     _create_post_via_api(client, text="nothing relevant")
 
-    res = client.get("/posts/search", params={"q": "kittens"})
+    # use the main list endpoint with q as a filter
+    res = client.get("/posts", params={"q": "kittens"})
     assert res.status_code == 200
+
     data = res.json()
-    texts = [item["text"] for item in data["items"]]
-    assert any("kittens and puppies" == t for t in texts)
-    # Only one post contains 'kittens'
+    # Only the first post should match
     assert data["meta"]["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["text"] == "kittens and puppies"
 
 
 def test_list_posts_filter_by_tag(client: TestClient):
