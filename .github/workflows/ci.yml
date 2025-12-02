@@ -1,6 +1,5 @@
 name: CI — tests & lint
 
-# ONLY for pull requests
 on:
   pull_request:
     branches:
