@@ -1,12 +1,9 @@
 from __future__ import annotations
-
 from collections.abc import Iterator
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, create_engine
-
 from social_media_app.app import app
 from social_media_app.db import create_db_and_tables, get_session
 
