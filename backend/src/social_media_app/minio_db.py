@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import io
-import uuid
 import os
+import uuid
 
 from fastapi import UploadFile
 from minio import Minio
@@ -149,3 +149,15 @@ def image_exists_in_minio(image_path: str) -> bool:
         if "nosuchkey" in code or "nosuchbucket" in code or "resourcenotfound" in code:
             return False
         raise
+
+def get_image_bytes_from_minio(image_path: str) -> bytes:
+    client = _get_minio_client()
+
+    try:
+        response = client.get_object(settings.MINIO_BUCKET, image_path)
+        data = response.read()
+        response.close()
+        response.release_conn()
+        return data
+    except Exception as exc:
+        raise RuntimeError(f"Image not found in MinIO: {image_path}") from exc

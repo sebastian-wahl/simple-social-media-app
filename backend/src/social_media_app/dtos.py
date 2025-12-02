@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 from pydantic import Field as PydField
 
+from .config import settings
 from .models import Comment, Post
 
 # =============================================================================
@@ -33,6 +34,7 @@ class PostCreateDTO(BaseModel):
 class PostReadDTO(BaseModel):
     id: int
     image_path: str
+    image_url: str # full URL delivered to client
     text: str
     user: str
     toe_rating: int
@@ -108,9 +110,12 @@ def post_to_dto(post: Post) -> PostReadDTO:
     """
     Map a Post SQLModel instance (with tags loaded) to PostReadDTO.
     """
+    backend_url = settings.APP_HOST
+
     return PostReadDTO(
-        id=post.id,  # type: ignore[arg-type]
+        id=post.id,
         image_path=post.image_path,
+        image_url=f"{backend_url}/images/{post.image_path}",
         text=post.text,
         user=post.user,
         toe_rating=post.toe_rating,
