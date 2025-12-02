@@ -1,10 +1,9 @@
 name: Docker build & push
 
 on:
-  workflow_run:
-    workflows: ["CI — tests & lint"]
-    types:
-      - completed
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-push:
@@ -44,7 +43,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
           file: ./backend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
