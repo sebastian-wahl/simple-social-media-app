@@ -2,18 +2,20 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from mimetypes import guess_type
 
 from fastapi import (
     Depends,
     FastAPI,
     File,
     HTTPException,
+    Query,
     UploadFile,
     status,
-    Query,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
+from starlette.responses import StreamingResponse
 
 from .db import (
     PostFilter,
@@ -40,7 +42,7 @@ from .dtos import (
     comment_to_dto,
     post_to_dto,
 )
-from .minio_db import image_exists_in_minio, upload_image_to_minio
+from .minio_db import get_image_bytes_from_minio, image_exists_in_minio, upload_image_to_minio
 
 # =============================================================================
 # Lifespan (startup/shutdown): create DB schema once at startup
@@ -117,6 +119,25 @@ async def upload_image(file: UploadFile = File(...)):
 
     return UploadImageResponseDTO(image_path=image_path)
 
+@app.get("/images/{image_path:path}")
+def get_image(image_path: str):
+    """
+    Return raw image bytes stored in MinIO.
+
+    image_path is a key such as "posts/<uuid>.jpg".
+    """
+    try:
+        data = get_image_bytes_from_minio(image_path)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    content_type, _ = guess_type(image_path)
+    content_type = content_type or "application/octet-stream"
+
+    return StreamingResponse(
+        content=iter([data]),
+        media_type=content_type,
+    )
 
 # =============================================================================
 # Routes: Posts
