@@ -187,6 +187,9 @@ MinIO is used to store uploaded images.
 - Backend stores images in MinIO (or uses dummy mode if MINIO_ENABLED=false).
 - `/posts` uses the `image_path` returned from upload.
 
+To serve images stored in MinIO, the backend provides a dedicated endpoint:
+- `/images/{image_path:path}` handles the image get requests
+
 Health endpoint:
 
 ```
