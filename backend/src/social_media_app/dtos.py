@@ -83,8 +83,7 @@ class CommentReadDTO(BaseModel):
 # NEW: DTO for rating a post ------------------------------------------
 class ToeRatingCreateDTO(BaseModel):
     """
-    NEW: DTO for rate endpoint.
-
+    DTO for rate endpoint.
     The "user" is stored so that later it can be used to
     prevent multiple ratings per user (if desired).
     """
@@ -135,7 +134,7 @@ def post_to_dto(post: Post) -> PostReadDTO:
     if ratings:
         avg_rating = sum(r.value for r in ratings) / len(ratings)
     else:
-        avg_rating = None
+        avg_rating = 0.0
 
     return PostReadDTO(
         id=post.id,
