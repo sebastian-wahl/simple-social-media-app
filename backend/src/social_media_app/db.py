@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlmodel import Session, SQLModel, create_engine, func, select
 
-from .models import Comment, Post, PostTagLink, Tag
+from .models import Comment, Post, PostTagLink, Tag, ToeRating
 
 # ---------------------------
 # Engine & Session
@@ -45,6 +46,7 @@ class PostFilter:
     q: str | None = None
     tags: list[str] | None = None
     match_all: bool = False
+    # min_rating / max_rating apply to mean ToeRating.value
     min_rating: int | None = None
     max_rating: int | None = None
     limit: int = 20
@@ -97,17 +99,18 @@ def create_post_db(
     image_path: str,
     text: str,
     user: str,
-    toe_rating: int,
     tags: list[str],
 ) -> Post:
     """
     Create a new Post with the given data and associated tags.
+
+    toe_rating is no longer part of the Post.
+    Ratings are created via add_rating_db() from the rating endpoint.
     """
     post = Post(
         image_path=image_path,
         text=text,
         user=user,
-        toe_rating=toe_rating,
     )
     post.tags = _ensure_tags(session, tags)
     session.add(post)
@@ -116,10 +119,27 @@ def create_post_db(
     return post
 
 
+def _avg_rating_for_post(post: Post) -> float | None:
+    """
+    Helper to compute the average rating for a Post in Python.
+
+    NOTE: This uses the Post.ratings relationship. For small datasets this
+    is fine; for larger ones you might want to push aggregation into SQL.
+    """
+    ratings = getattr(post, "ratings", []) or []
+    if not ratings:
+        return None
+    return sum(r.value for r in ratings) / len(ratings)
+
+
 def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
     """
     Return a (posts, total_count) tuple based on the given filter.
-    All SQL logic (search, tags, rating, ordering, pagination) lives here.
+
+    - All rating logic (min_rating/max_rating and rating/relevance
+      ordering) uses the mean of ToeRating.value via
+      _avg_rating_for_post().
+    - Implemented in Python for simplicity (fine for this project).
     """
     stmt = select(Post)
 
@@ -127,13 +147,7 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
     if f.q:
         stmt = stmt.where((Post.text.ilike(f"%{f.q}%")) | (Post.user.ilike(f"%{f.q}%")))
 
-    # Rating filter
-    if f.min_rating is not None:
-        stmt = stmt.where(Post.toe_rating >= f.min_rating)
-    if f.max_rating is not None:
-        stmt = stmt.where(Post.toe_rating <= f.max_rating)
-
-    # Tag filter
+    # Tag filter (unchanged)
     if f.tags:
         if f.match_all:
             # Posts containing ALL requested tags
@@ -155,27 +169,84 @@ def list_posts_db(session: Session, f: PostFilter) -> tuple[list[Post], int]:
                 .group_by(Post.id)
             )
 
-    # Simple ordering
+    # Execute base query (without rating-dependent limit/offset/order)
+    posts: list[Post] = session.exec(stmt).all()
+
+    # Rating-based filtering (mean of ToeRating.value)
+    if f.min_rating is not None:
+        posts = [
+            p
+            for p in posts
+            if _avg_rating_for_post(p) is not None and _avg_rating_for_post(p) >= f.min_rating
+        ]
+
+    if f.max_rating is not None:
+        posts = [
+            p
+            for p in posts
+            if _avg_rating_for_post(p) is not None and _avg_rating_for_post(p) <= f.max_rating
+        ]
+
+    # Ordering
     if f.order_by == "newest":
-        stmt = stmt.order_by(Post.created_at.desc())
-    elif f.order_by == "rating":
-        stmt = stmt.order_by(Post.toe_rating.desc(), Post.created_at.desc())
+        posts.sort(key=lambda p: p.created_at, reverse=True)
     else:
-        # "relevance": simple heuristic -> rating, then recency
-        stmt = stmt.order_by(Post.toe_rating.desc(), Post.created_at.desc())
+        # "rating" and "relevance": sort by mean rating then recency
+        posts.sort(
+            key=lambda p: (_avg_rating_for_post(p) or 0.0, p.created_at),
+            reverse=True,
+        )
 
-    # Wrap the filtered statement as a subquery and count its rows.
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total = session.exec(count_stmt).one() or 0
+    total = len(posts)
 
-    # Page of items (with limit/offset)
-    posts = session.exec(stmt.offset(f.offset).limit(f.limit)).all()
+    # Pagination
+    posts = posts[f.offset : f.offset + f.limit]
 
     return posts, total
 
 
 def get_post_db(session: Session, post_id: int) -> Post | None:
     return session.get(Post, post_id)
+
+
+# ---------------------------
+# DB operations: Ratings
+# ---------------------------
+
+
+def add_or_update_rating_db(
+    session: Session,
+    *,
+    post_id: int,
+    user: str,
+    value: int,
+) -> ToeRating:
+    """
+    Create or update a toe rating for a post.
+      - If a rating for (post_id, user) already exists, its value (and
+        timestamp) are updated instead of inserting a second row.
+      - This gives the semantics: "second time overwrites the first rating".
+    """
+    existing = session.exec(
+        select(ToeRating).where(
+            ToeRating.post_id == post_id,
+            ToeRating.user == user,
+        )
+    ).first()
+
+    if existing:
+        existing.value = value
+        existing.created_at = datetime.now(UTC)
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+
+    rating = ToeRating(post_id=post_id, user=user, value=value)
+    session.add(rating)
+    session.commit()
+    session.refresh(rating)
+    return rating
 
 
 # ---------------------------

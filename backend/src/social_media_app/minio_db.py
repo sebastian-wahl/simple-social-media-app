@@ -150,6 +150,7 @@ def image_exists_in_minio(image_path: str) -> bool:
             return False
         raise
 
+
 def get_image_bytes_from_minio(image_path: str) -> bytes:
     client = _get_minio_client()
 

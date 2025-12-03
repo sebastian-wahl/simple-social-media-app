@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, create_engine
+
 from social_media_app.app import app
 from social_media_app.db import create_db_and_tables, get_session
-
 
 # ---------------------------------------------------------------------------
 # Test app + DB setup
@@ -125,8 +127,8 @@ def test_list_posts_pagination_and_meta(client: TestClient):
 
 
 def test_list_posts_without_q_returns_all(client: TestClient):
-    p1 = _create_post_via_api(client, text="kittens and puppies")
-    p2 = _create_post_via_api(client, text="only puppies here")
+    _create_post_via_api(client, text="kittens and puppies")
+    _create_post_via_api(client, text="only puppies here")
 
     res = client.get("/posts")  # no q parameter
     assert res.status_code == 200
@@ -167,7 +169,6 @@ def test_list_posts_filter_by_tag(client: TestClient):
     assert len(texts) == 2
     assert "blue one" in texts
     assert "both" in texts
-
 
 
 # ---------------------------------------------------------------------------
