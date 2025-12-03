@@ -5,6 +5,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 # --- Link table: many-to-many between Post and Tag ---
 class PostTagLink(SQLModel, table=True):
+    __tablename__ = "post_tag_link"
+
     post_id: int | None = Field(default=None, foreign_key="post.id", primary_key=True)
     tag_id: int | None = Field(default=None, foreign_key="tag.id", primary_key=True)
 
@@ -61,6 +63,8 @@ class ToeRating(SQLModel, table=True):
     Separate per-user toe rating for a post (1–5).
     The mean of these values is returned in PostReadDTO.toe_rating.
     """
+
+    __tablename__ = "toe_rating"
 
     id: int | None = Field(default=None, primary_key=True)
     post_id: int = Field(foreign_key="post.id", index=True)
