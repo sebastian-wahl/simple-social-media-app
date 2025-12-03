@@ -1,7 +1,11 @@
-from datetime import datetime
+from datetime import datetime, UTC
 
 from sqlmodel import Field, Relationship, SQLModel
 
+# Datetime factory
+def utcnow() -> datetime:
+    """Return an aware UTC datetime for default_factory."""
+    return datetime.now(UTC)
 
 # --- Link table: many-to-many between Post and Tag ---
 class PostTagLink(SQLModel, table=True):
@@ -34,7 +38,7 @@ class Post(SQLModel, table=True):
     image_path: str  # MinIO object key or path
     text: str
     user: str
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
     # Many-to-many: one post can have many tags
     tags: list["Tag"] = Relationship(
@@ -43,7 +47,7 @@ class Post(SQLModel, table=True):
     )
 
     # one-to-many: a post can have many toe ratings
-    ratings: list["ToeRating"] = Relationship(back_populates="post")  # NEW
+    ratings: list["ToeRating"] = Relationship(back_populates="post")
 
 
 class Comment(SQLModel, table=True):
@@ -55,7 +59,7 @@ class Comment(SQLModel, table=True):
     post_id: int = Field(foreign_key="post.id", index=True)
     user: str
     text: str
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class ToeRating(SQLModel, table=True):
@@ -63,13 +67,12 @@ class ToeRating(SQLModel, table=True):
     Separate per-user toe rating for a post (1–5).
     The mean of these values is returned in PostReadDTO.toe_rating.
     """
-
     __tablename__ = "toe_rating"
 
     id: int | None = Field(default=None, primary_key=True)
     post_id: int = Field(foreign_key="post.id", index=True)
     user: str
     value: int = Field(ge=1, le=5, description="Toe rating 1–5")
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
     post: Post | None = Relationship(back_populates="ratings")

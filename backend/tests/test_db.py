@@ -18,7 +18,8 @@ from social_media_app.db import (
     list_posts_db,
     list_tags_db,
 )
-from social_media_app.models import Post
+from social_media_app.models import Post, ToeRating
+
 
 # ---------------------------------------------------------------------------
 # Test DB setup: shared in-memory SQLite per test function
@@ -63,7 +64,6 @@ def test_create_post_assigns_id_and_tags(session: Session):
         image_path="a.jpg",
         text="hello world",
         user="alice",
-        toe_rating=5,
         tags=["test", "fun"],
     )
 
@@ -86,7 +86,6 @@ def test_get_post_db_returns_post(session: Session):
         image_path="p.jpg",
         text="post",
         user="bob",
-        toe_rating=3,
         tags=[],
     )
 
@@ -113,7 +112,6 @@ def _seed_posts_for_list_tests(session: Session) -> list[Post]:
             image_path="1.jpg",
             text="first post",
             user="u1",
-            toe_rating=3,
             tags=["blue", "common"],
         )
     )
@@ -123,7 +121,6 @@ def _seed_posts_for_list_tests(session: Session) -> list[Post]:
             image_path="2.jpg",
             text="second post",
             user="u2",
-            toe_rating=5,
             tags=["red", "common"],
         )
     )
@@ -133,10 +130,19 @@ def _seed_posts_for_list_tests(session: Session) -> list[Post]:
             image_path="3.jpg",
             text="third post",
             user="u3",
-            toe_rating=1,
             tags=["green"],
         )
     )
+
+    # Add one toe rating per post (same values as before: 3, 5, 1)
+    session.add_all(
+        [
+            ToeRating(post_id=posts[0].id, user=posts[0].user, value=3),
+            ToeRating(post_id=posts[1].id, user=posts[1].user, value=5),
+            ToeRating(post_id=posts[2].id, user=posts[2].user, value=1),
+        ]
+    )
+    session.commit()
     return posts
 
 
@@ -175,7 +181,6 @@ def test_list_posts_filter_by_min_rating(session: Session):
 
     assert total == 1
     assert len(posts) == 1
-    assert posts[0].toe_rating == 5
     assert posts[0].text == "second post"
 
 
