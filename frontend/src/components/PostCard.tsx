@@ -4,16 +4,9 @@ import RatingStars from "./RatingStars";
 
 export default function PostCard({ post }: { post: PostReadDTO }) {
   const created = new Date(post.created_at).toLocaleString();
-  const isAbsolute =
-    post.image_path.startsWith("http://") ||
-    post.image_path.startsWith("https://") ||
-    post.image_path.startsWith("/");
-
-  const placeholderBase =
-    "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200&auto=format&fit=crop";
-  const placeholder = `${placeholderBase}&seed=${post.id}`;
-
-  const imgUrl = isAbsolute ? post.image_path : placeholder;
+  const placeholderBase = "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200&auto=format&fit=crop";
+  const placeholder = '${placeholderBase}&seed=%{post.id}';
+  const imgUrl = post.image_url || placeholder;
 
   return (
     <article className="bg-white rounded-lg shadow p-4 flex flex-col gap-3">

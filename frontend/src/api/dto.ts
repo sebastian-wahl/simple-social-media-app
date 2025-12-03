@@ -1,6 +1,7 @@
 export interface PostReadDTO {
     id: number;
     image_path: string;
+    image_url: string;
     text: string;
     user: string;
     toe_rating: number;

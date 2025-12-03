@@ -19,16 +19,11 @@ export default function PostDetailPage() {
   if (isLoading) return <div>Loading…</div>;
   if (!post) return <div>Post not found.</div>;
 
-  const isAbsolute =
-    post.image_path.startsWith("http://") ||
-    post.image_path.startsWith("https://") ||
-    post.image_path.startsWith("/");
-
   const placeholderBase =
     "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1600&auto=format&fit=crop";
   const placeholder = `${placeholderBase}&seed=${post.id}`;
 
-  const imgUrl = isAbsolute ? post.image_path : placeholder;
+  const imgUrl = post.image_url || placeholder;
 
   return (
     <div className="space-y-4">

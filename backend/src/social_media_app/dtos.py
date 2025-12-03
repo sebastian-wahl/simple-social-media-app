@@ -128,7 +128,8 @@ def post_to_dto(post: Post) -> PostReadDTO:
     """
     Map a Post SQLModel instance (with tags & ratings loaded) to PostReadDTO.
     """
-    backend_url = settings.APP_HOST
+    # backend_url = settings.APP_HOST
+    backend_url = f"http://{settings.APP_HOST}:{settings.APP_PORT}"
     # toe_rating is computed as the mean of ToeRating.value
     ratings = getattr(post, "ratings", []) or []
     if ratings:
