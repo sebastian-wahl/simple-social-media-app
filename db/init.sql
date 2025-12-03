@@ -8,6 +8,7 @@
 -- ============================
 DROP TABLE IF EXISTS post_tag_link CASCADE;
 DROP TABLE IF EXISTS comment CASCADE;
+DROP TABLE IF EXISTS toe_rating CASCADE;
 DROP TABLE IF EXISTS post CASCADE;
 DROP TABLE IF EXISTS tag CASCADE;
 
@@ -21,7 +22,6 @@ CREATE TABLE post
     image_path TEXT      NOT NULL,
     text       TEXT      NOT NULL,
     "user"     TEXT      NOT NULL,              -- matches Post.user
-    toe_rating INTEGER   NOT NULL CHECK (toe_rating BETWEEN 1 AND 5),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -48,19 +48,36 @@ CREATE TABLE comment
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- separate toe_rating table
+CREATE TABLE toe_rating
+(
+    id         SERIAL PRIMARY KEY,
+    post_id    INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
+    "user"     TEXT      NOT NULL,
+    value      INTEGER   NOT NULL CHECK (value BETWEEN 1 AND 5),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 -- ============================
 -- Optional test data
 -- ============================
--- INSERT INTO post (image_path, text, "user", toe_rating)
+-- CHANGED: posts no longer have toe_rating; ratings are in toe_rating.
+-- INSERT INTO post (image_path, text, "user")
 -- VALUES
---     ('test1.jpg', 'Hello World', 'alice', 5),
---     ('test2.jpg', 'Second post', 'bob', 3);
-
+--     ('test1.jpg', 'Hello World', 'alice'),
+--     ('test2.jpg', 'Second post', 'bob');
+--
 -- INSERT INTO tag (name) VALUES ('test'), ('blue'), ('common');
-
+--
 -- INSERT INTO post_tag_link (post_id, tag_id)
 -- VALUES (1, 1), (1, 2), (2, 3);
-
+--
+-- INSERT INTO toe_rating (post_id, "user", value)
+-- VALUES
+--     (1, 'alice', 5),
+--     (1, 'bob', 4),
+--     (2, 'bob', 3);
+--
 -- INSERT INTO comment (post_id, "user", text)
 -- VALUES (1, 'alice', 'Nice post!');
 

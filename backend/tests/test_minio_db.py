@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import io
-import pytest
+
 from fastapi import UploadFile
 from minio.error import S3Error
 from starlette.datastructures import Headers
+
 from social_media_app import minio_db
-from social_media_app.config import settings
 from social_media_app.minio_db import (
     _guess_extension,
     image_exists_in_minio,

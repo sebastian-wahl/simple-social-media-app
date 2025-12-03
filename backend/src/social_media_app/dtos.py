@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydField
 
 from .config import settings
-from .models import Comment, Post
+from .models import Comment, Post  # CHANGED: ToeRating is used via Post.ratings only
 
 # =============================================================================
 # DTOs (API Input/Output)
@@ -22,22 +22,25 @@ class PostCreateDTO(BaseModel):
       1) Client uploads image to /uploads/images (multipart)
          -> receives {"image_path": "posts/<uuid>.jpg"}
       2) Client calls POST /posts with that image_path + other fields.
+
+    CHANGED: toe_rating was removed from the create payload.
+    Rating is now done via a separate /posts/{post_id}/rating endpoint.
     """
 
     image_path: str
     text: str
     user: str
-    toe_rating: int = PydField(ge=1, le=5)
     tags: list[str] = []  # tag names
 
 
 class PostReadDTO(BaseModel):
     id: int
     image_path: str
-    image_url: str # full URL delivered to client
+    image_url: str  # full URL delivered to client
     text: str
     user: str
-    toe_rating: int
+    # CHANGED: toe_rating is now the mean rating (float) and may be None if no ratings yet.
+    toe_rating: float | None
     created_at: str
     tags: list[str]
 
@@ -49,6 +52,9 @@ class PostFilterDTO(BaseModel):
     API layer:
       - validates incoming query params
       - passes them as PostFilter to the DB layer.
+
+    CHANGED: min_rating / max_rating still exist but now filter
+    by the mean rating (ToeRating.value) instead of a column on Post.
     """
 
     q: str | None = None
@@ -72,6 +78,18 @@ class CommentReadDTO(BaseModel):
     user: str
     text: str
     created_at: str
+
+
+# NEW: DTO for rating a post ------------------------------------------
+class ToeRatingCreateDTO(BaseModel):
+    """
+    DTO for rate endpoint.
+    The "user" is stored so that later it can be used to
+    prevent multiple ratings per user (if desired).
+    """
+
+    user: str
+    toe_rating: int = PydField(ge=1, le=5)
 
 
 class PageMetaDTO(BaseModel):
@@ -108,9 +126,15 @@ class UploadImageResponseDTO(BaseModel):
 
 def post_to_dto(post: Post) -> PostReadDTO:
     """
-    Map a Post SQLModel instance (with tags loaded) to PostReadDTO.
+    Map a Post SQLModel instance (with tags & ratings loaded) to PostReadDTO.
     """
     backend_url = settings.APP_HOST
+    # toe_rating is computed as the mean of ToeRating.value
+    ratings = getattr(post, "ratings", []) or []
+    if ratings:
+        avg_rating = sum(r.value for r in ratings) / len(ratings)
+    else:
+        avg_rating = 0.0
 
     return PostReadDTO(
         id=post.id,
@@ -118,7 +142,7 @@ def post_to_dto(post: Post) -> PostReadDTO:
         image_url=f"{backend_url}/images/{post.image_path}",
         text=post.text,
         user=post.user,
-        toe_rating=post.toe_rating,
+        toe_rating=avg_rating,
         created_at=post.created_at.isoformat(),
         tags=[t.name for t in (post.tags or [])],
     )

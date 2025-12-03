@@ -5,8 +5,10 @@ from pathlib import Path
 
 from social_media_app.app import app
 
-# Since FastAPI provides an openapi spec itself at the endpoint /openapi.json we dont need to define a specification ourselves.
-# But for the sake of completeness we generate the specification and place it in the backend folder for closer inspection.
+# Since FastAPI provides an openapi spec itself at the endpoint /openapi.json
+# we dont need to define a specification ourselves.
+# But for the sake of completeness we generate the specification and place
+# it in the backend folder for closer inspection.
 
 
 def main() -> None:

@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, create_engine
+
 from social_media_app.app import app
 from social_media_app.db import create_db_and_tables, get_session
-
 
 # ---------------------------------------------------------------------------
 # Test app + DB setup
@@ -80,7 +82,6 @@ def _create_post_via_api(client: TestClient, **overrides) -> dict:
         "image_path": "posts/test.jpg",
         "text": "hello world",
         "user": "alice",
-        "toe_rating": 5,
         "tags": ["blue", "common"],
     }
     payload.update(overrides)
@@ -97,7 +98,8 @@ def test_create_and_get_post(client: TestClient):
     assert created["id"] == 1
     assert created["image_path"] == "posts/test.jpg"
     assert created["user"] == "alice"
-    assert created["toe_rating"] == 5
+    assert "toe_rating" in created
+    assert created["toe_rating"] == 0.0
     assert sorted(created["tags"]) == ["blue", "common"]
 
     # GET /posts/{id}
@@ -106,6 +108,8 @@ def test_create_and_get_post(client: TestClient):
     fetched = res.json()
     assert fetched["id"] == created["id"]
     assert fetched["text"] == "hello world"
+    assert "toe_rating" in fetched
+    assert fetched["toe_rating"] == 0.0
 
 
 def test_list_posts_pagination_and_meta(client: TestClient):
@@ -125,8 +129,8 @@ def test_list_posts_pagination_and_meta(client: TestClient):
 
 
 def test_list_posts_without_q_returns_all(client: TestClient):
-    p1 = _create_post_via_api(client, text="kittens and puppies")
-    p2 = _create_post_via_api(client, text="only puppies here")
+    _create_post_via_api(client, text="kittens and puppies")
+    _create_post_via_api(client, text="only puppies here")
 
     res = client.get("/posts")  # no q parameter
     assert res.status_code == 200
@@ -168,6 +172,70 @@ def test_list_posts_filter_by_tag(client: TestClient):
     assert "blue one" in texts
     assert "both" in texts
 
+
+# ---------------------------------------------------------------------------
+# Toe rating endpoints (/posts/{post_id}/rating)
+# ---------------------------------------------------------------------------
+
+
+def test_rate_post_sets_toe_rating_and_reflects_in_get(client: TestClient):
+    post = _create_post_via_api(client)
+
+    # Initially no rating
+    res = client.get(f"/posts/{post['id']}")
+    assert res.status_code == 200
+    fetched = res.json()
+    assert fetched["toe_rating"] == 0.0
+
+    # Add first rating via rating endpoint
+    res = client.post(
+        f"/posts/{post['id']}/rating",
+        json={"user": "bob", "toe_rating": 5},
+    )
+    assert res.status_code == 201
+    rated = res.json()
+    # Endpoint returns PostReadDTO including aggregated toe_rating
+    assert rated["id"] == post["id"]
+    assert pytest.approx(rated["toe_rating"]) == 5.0
+
+    # GET should now also return the updated mean rating
+    res = client.get(f"/posts/{post['id']}")
+    assert res.status_code == 200
+    fetched = res.json()
+    assert pytest.approx(fetched["toe_rating"]) == 5.0
+
+
+def test_rate_post_overwrites_previous_rating_from_same_user(client: TestClient):
+    post = _create_post_via_api(client)
+
+    # user1 = alice, user2 = bob
+    # alice rates 5
+    res = client.post(
+        f"/posts/{post['id']}/rating",
+        json={"user": "alice", "toe_rating": 5},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert pytest.approx(data["toe_rating"]) == 5.0
+
+    # bob rates 1 -> mean should be (5 + 1) / 2 = 3
+    res = client.post(
+        f"/posts/{post['id']}/rating",
+        json={"user": "bob", "toe_rating": 1},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert pytest.approx(data["toe_rating"]) == 3.0
+
+    # alice changes her rating to 3
+    # With overwrite, values should be [3, 1] -> mean = 2
+    res = client.post(
+        f"/posts/{post['id']}/rating",
+        json={"user": "alice", "toe_rating": 3},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert pytest.approx(data["toe_rating"]) == 2.0
 
 
 # ---------------------------------------------------------------------------
