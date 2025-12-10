@@ -1,63 +1,80 @@
 version: "3.9"
 
+
 services:
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: social-media-proxy
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - frontend-network
+      - backend-network
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: social-media-frontend
+    restart: unless-stopped
+    networks:
+      - frontend-network
+
+
   db:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: social-media-db
     restart: unless-stopped
-
     env_file:
       - ./.env
-
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-    ports:
-      - "${POSTGRES_PORT}:5432"
-
     volumes:
-      - ./db/postgres-data:/var/lib/postgresql
+      - ./db/postgres-data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
-    # HEALTHCHECK
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 5s
+    networks:
+      - backend-network
+
 
   minio:
     image: minio/minio:latest
     container_name: minio-db
     restart: unless-stopped
-
     env_file:
       - ./.env
-
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_CONSOLE_ADDRESS: ":9001"
-
     command: server /data
-
     ports:
-      - "${MINIO_API_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:9001"
-
     volumes:
       - ./db/minio-data:/data
-
-    # HEALTHCHECK
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 10s
+    networks:
+      - backend-network
+
 
   backend:
     image: social-media-backend
@@ -66,24 +83,31 @@ services:
       dockerfile: backend/Dockerfile
     container_name: social-media-api
     restart: unless-stopped
-
-    profiles:
-      - ${RUN_BACKEND_FROM_DOCKERFILE}
-
     env_file:
       - ./.env
-
     environment:
       DATABASE_URL: >-
         postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       MINIO_ENDPOINT: minio:9000
-
-    # backend waits until db and minio report "healthy"
+      APP_ENV: production
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      MINIO_ENABLED: "true"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SECURE: "false"
+      MINIO_BUCKET: post-images
     depends_on:
       db:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      - backend-network
 
-    ports:
-      - "8000:8000"
+
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge

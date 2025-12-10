@@ -5,7 +5,7 @@ import RatingStars from "./RatingStars";
 export default function PostCard({ post }: { post: PostReadDTO }) {
   const created = new Date(post.created_at).toLocaleString();
   const placeholderBase = "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200&auto=format&fit=crop";
-  const placeholder = '${placeholderBase}&seed=%{post.id}';
+  const placeholder = `${placeholderBase}&seed=${post.id}`; 
   const imgUrl = post.image_url || placeholder;
 
   return (
