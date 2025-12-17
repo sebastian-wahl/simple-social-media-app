@@ -37,6 +37,7 @@ class PostReadDTO(BaseModel):
     id: int
     image_path: str
     image_url: str  # full URL delivered to client
+    thumbnail_url: str | None
     text: str
     user: str
     # CHANGED: toe_rating is now the mean rating (float) and may be None if no ratings yet.
@@ -137,10 +138,14 @@ def post_to_dto(post: Post) -> PostReadDTO:
     else:
         avg_rating = 0.0
 
+    thumbnail_path = post.image_path.replace("posts/", "thumbs/", 1)
+    thumbnail_url = f"{backend_url}/images/{thumbnail_path}"
+    
     return PostReadDTO(
         id=post.id,
         image_path=post.image_path,
         image_url=f"{backend_url}/images/{post.image_path}",
+        thumbnail_url=thumbnail_url,
         text=post.text,
         user=post.user,
         toe_rating=avg_rating,

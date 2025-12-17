@@ -105,7 +105,26 @@ services:
     networks:
       - backend-network
 
-
+  rabbitmq:
+    image: rabbitmq:3.13-manageement-alpine
+    container_name: social_media-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBIT_MQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
+      RABBIT_MQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-network
+    volumes:
+      - ./db/rabbitmq-data:/var/lib/rabbitmq
+    
 networks:
   frontend-network:
     driver: bridge

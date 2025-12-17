@@ -34,4 +34,6 @@ ENV PYTHONPATH=/app/src
 EXPOSE 8000
 
 # Default command: run wait script then uvicorn
-CMD ["/wait-for-services.sh", "uvicorn", "social_media_app.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["/wait-for-services.sh", "uvicorn", "social_media_app.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "social_media_app.app:app", "--host", "0.0.0.0", "--port", "8000"]
+

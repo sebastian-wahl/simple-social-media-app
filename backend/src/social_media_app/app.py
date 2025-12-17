@@ -45,6 +45,7 @@ from .dtos import (
     post_to_dto,
 )
 from .minio_db import get_image_bytes_from_minio, image_exists_in_minio, upload_image_to_minio
+from .queue import publish_resize_task
 
 # =============================================================================
 # Lifespan (startup/shutdown): create DB schema once at startup
@@ -96,6 +97,8 @@ app.add_middleware(
 async def upload_image(file: UploadFile = File(...)):
     """
     Upload a single image to MinIO and return the generated image_path.
+
+    Also publishes a resize task to RabbitMQ for thumbnail generation.
     Usage:
       1) Client sends multipart/form-data with the binary image.
       2) Backend:
@@ -119,6 +122,8 @@ async def upload_image(file: UploadFile = File(...)):
             detail=str(exc),
         ) from exc
 
+    publish_resize_task(image_path)
+    
     return UploadImageResponseDTO(image_path=image_path)
 
 
