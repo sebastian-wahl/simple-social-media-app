@@ -1,31 +1,20 @@
-name: Docker build & push
+name: Docker Build & Push
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
-  build-and-push:
-    # Run only if:
-    # - CI flow finished successfully
-    # - The branch was main
-    if: >
-      ${{ github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.head_branch == 'main' }}
-
+  backend:
+    name: Build & Push Backend Image
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          # checkout the exact commit that CI ran on
-          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -34,17 +23,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/simple-social-media-backend
+      - name: Build backend image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository }}/backend:latest \
+            -f backend/Dockerfile .
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Push backend image
+        run: |
+          docker push ghcr.io/${{ github.repository }}/backend:latest
+
+  worker:
+    name: Build & Push Resize Worker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          context: .
-          file: ./backend/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build worker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository }}/resize-worker:latest \
+            -f backend/src/worker/Dockerfile .
+
+      - name: Push worker image
+        run: |
+          docker push ghcr.io/${{ github.repository }}/resize-worker:latest

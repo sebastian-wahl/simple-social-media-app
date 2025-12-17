@@ -53,6 +53,11 @@ def client(monkeypatch) -> Iterator[TestClient]:
         "social_media_app.app.image_exists_in_minio",
         lambda image_path: True,
     )
+    # Mock RabbitMQ publish (no-op)
+    monkeypatch.setattr(
+        "social_media_app.app.queue_service.publish",
+        lambda *args, **kwargs: None,
+    )
 
     with TestClient(app) as c:
         yield c

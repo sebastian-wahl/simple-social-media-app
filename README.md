@@ -14,6 +14,7 @@ This repository contains both backend and frontend code, plus a Docker-based loc
 
 ```
 project-root/
+├─ .github/workflows        # all workflows in here
 ├─ .env                     # All environment variables live here
 ├─ .env.template            # Example configuration
 ├─ docker-compose.yml       # Local stack (API + Postgres + MinIO)
@@ -22,15 +23,24 @@ project-root/
 │  ├─ Dockerfile
 │  ├─ requirements.txt
 │  ├─ wait-for-services.sh
-│  └─ src/
-│     └─ social_media_app/
-│         ├─ app.py
-│         ├─ config.py
-│         ├─ db.py
-│         ├─ dtos.py
-│         ├─ main.py
-│         ├─ minio_db.py
-│         └─ models.py
+│  ├─ src/
+│  │   ├─ social_media_app/
+│  │   │   ├─ app.py
+│  │   │   ├─ config.py
+│  │   │   ├─ db.py
+│  │   │   ├─ dtos.py
+│  │   │   ├─ main.py
+│  │   │   ├─ minio_db.py
+│  │   │   └─ models.py
+│  │   └─ worker/ 
+│  │       ├─ Dockerfile
+│  │       ├─ requirements.txt
+│  │       └─ resize_worker.py
+│  └─ tests/
+│      ├─ test_api.py
+│      ├─ test_db.py
+│      └─ test_minio_db.py
+
 
 ├─ db/
 │  ├─ init.sql
