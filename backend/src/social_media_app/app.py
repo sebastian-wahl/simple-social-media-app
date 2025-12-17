@@ -1,8 +1,11 @@
 # Main backend api entry point
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from mimetypes import guess_type
+
+logger = logging.getLogger(__name__)
 
 from fastapi import (
     Depends,
@@ -45,7 +48,8 @@ from .dtos import (
     post_to_dto,
 )
 from .minio_db import get_image_bytes_from_minio, image_exists_in_minio, upload_image_to_minio
-from .queue import publish_resize_task
+from .queue import queue_service
+from .config import settings
 
 # =============================================================================
 # Lifespan (startup/shutdown): create DB schema once at startup
@@ -122,7 +126,15 @@ async def upload_image(file: UploadFile = File(...)):
             detail=str(exc),
         ) from exc
 
-    publish_resize_task(image_path)
+    try:
+        queue_service.publish(
+            queue_name=settings.RABBITMQ_QUEUE_NAME,
+            message={"image_path": image_path}
+        )
+        logger.info(f"Published resize task for: {image_path}")
+    except Exception as e:
+        logger.warning(f"Failed to publish resize task: {e}")
+
     
     return UploadImageResponseDTO(image_path=image_path)
 

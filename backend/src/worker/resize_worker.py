@@ -6,13 +6,13 @@ from minio import Minio
 from PIL import Image
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
-#Configs
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "rabbitmq")
-RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "minioadmin")
-RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE_NAME", "image_resize_queue")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "rabbitmq")  # ← War "minioadmin"?
+RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE_NAME", "image_resize")  # ← Gleicher Name wie im Backend!
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
 MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
@@ -21,6 +21,7 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET", "post-images")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 THUMBNAIL_SIZE = (300, 300)
+
 
 def get_minio_client():
     """CREATE MinIO client"""
@@ -31,8 +32,9 @@ def get_minio_client():
         secure=MINIO_SECURE,
     )
 
+
 def resize_image(image_path: str) -> str:
-    """AAAAAAAAA"""
+    """Resize image and upload thumbnail to MinIO"""
     print(f"[RESIZE] Processing: {image_path}")
 
     client = get_minio_client()
@@ -53,7 +55,7 @@ def resize_image(image_path: str) -> str:
     thumb_buffer = io.BytesIO()
     img_format = img.format or 'JPEG'
     img.save(thumb_buffer, format=img_format, quality=85, optimize=True)
-    thumb_buffer.seek{0}
+    thumb_buffer.seek(0)  # ← FIX: () statt {}
     thumb_bytes = thumb_buffer.read()
 
     thumb_path = image_path.replace("posts/", "thumbs/", 1)
@@ -69,15 +71,16 @@ def resize_image(image_path: str) -> str:
         print(f"Thumbnail created: {thumb_path}")
         return thumb_path
     except Exception as e:
-        print("Failed to upload thumbnail: {e}")
+        print(f"Failed to upload thumbnail: {e}")  # ← FIX: f-string
         return None
+
 
 def callback(ch, method, properties, body):
     try:
         message = json.loads(body)
         image_path = message.get("image_path")
          
-         if not image_path:
+        if not image_path:  # ← FIX: Einrückung
             print("No image_path in message")
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
@@ -85,21 +88,22 @@ def callback(ch, method, properties, body):
         thumb_path = resize_image(image_path)
 
         if thumb_path:
-            print("Thumbnail {thumb_path}")
+            print(f"Thumbnail: {thumb_path}")  # ← FIX: f-string
         else:
-            print("Could not create thumbnail for {image_path}")
+            print(f"Could not create thumbnail for {image_path}")  # ← FIX: f-string
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        print("Processing failed: {e}")
+        print(f"Processing failed: {e}")  # ← FIX: f-string
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
 
 def main():
     print("Starting Image Resize Worker")
-    print("Connecting to RabbitMQ at {RABBITMQ_HOST}....")
+    print(f"Connecting to RabbitMQ at {RABBITMQ_HOST}....")  # ← FIX: f-string
 
-    credentials = pika.PlainCredentials(RABITMQ_USER, RABBITMQ_PASSWORD)
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=RABBITMQ_HOST,
@@ -117,16 +121,16 @@ def main():
         on_message_callback=callback,
     )
 
-    print(f"Waiting for messages in queue: {RABBITMQ_QUEUE}")
-    print("PRESS CTRL+C to exist")
+    print(f"Waiting for messages in queue: {RABBITMQ_QUEUE}")  # ← FIX: f-string
+    print("PRESS CTRL+C to exit")  # ← FIX: Typo "exist" → "exit"
 
     try:
         channel.start_consuming()
     except KeyboardInterrupt:
-        print("\n Shutting down...")
+        print("\nShutting down...")
         channel.stop_consuming()
         connection.close()
 
+
 if __name__ == "__main__":
     main()
-    
