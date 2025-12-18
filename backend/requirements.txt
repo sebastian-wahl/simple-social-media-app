@@ -9,3 +9,7 @@ python-dotenv
 uvicorn
 httpx # needed by TestClient
 psycopg[binary] # needed for psql connection
+
+pika
+pillow
+

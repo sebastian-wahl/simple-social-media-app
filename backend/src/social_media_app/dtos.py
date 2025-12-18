@@ -37,6 +37,7 @@ class PostReadDTO(BaseModel):
     id: int
     image_path: str
     image_url: str  # full URL delivered to client
+    thumbnail_url: str | None
     text: str
     user: str
     # CHANGED: toe_rating is now the mean rating (float) and may be None if no ratings yet.
@@ -128,25 +129,28 @@ def post_to_dto(post: Post) -> PostReadDTO:
     """
     Map a Post SQLModel instance (with tags & ratings loaded) to PostReadDTO.
     """
-    # backend_url = settings.APP_HOST
-    backend_url = f"http://{settings.APP_HOST}:{settings.APP_PORT}"
-    # toe_rating is computed as the mean of ToeRating.value
+    # ✅ GEÄNDERT: Relative URLs, damit der Browser sie über den Proxy aufrufen kann
     ratings = getattr(post, "ratings", []) or []
     if ratings:
         avg_rating = sum(r.value for r in ratings) / len(ratings)
     else:
         avg_rating = 0.0
 
+    # Thumbnail path
+    thumbnail_path = post.image_path.replace("posts/", "thumbs/", 1)
+    
     return PostReadDTO(
         id=post.id,
         image_path=post.image_path,
-        image_url=f"{backend_url}/images/{post.image_path}",
+        image_url=post.image_path, 
+        thumbnail_url=thumbnail_path, 
         text=post.text,
         user=post.user,
         toe_rating=avg_rating,
         created_at=post.created_at.isoformat(),
         tags=[t.name for t in (post.tags or [])],
     )
+
 
 
 def comment_to_dto(comment: Comment) -> CommentReadDTO:
