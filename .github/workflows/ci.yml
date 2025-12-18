@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - workflow_test
+  push:
+    branches:
+      - workflow_test
 
 jobs:
   backend:
