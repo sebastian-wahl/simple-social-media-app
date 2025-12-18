@@ -3,10 +3,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - workflow_test
+      - main
   push:
     branches:
-      - workflow_test
+      - main
 
 jobs:
   backend:
@@ -65,4 +65,4 @@ jobs:
 
       - name: Run worker tests
         run: |
-          pytest backend/tests/test_resize_worker.py
+          pytest backend/worker_tests
