@@ -1,7 +1,7 @@
 import io
 from PIL import Image
 
-from src.worker.resize_worker import resize_image
+from worker.resize_worker import resize_image
 
 
 class FakeMinioClient:
@@ -29,7 +29,7 @@ def test_resize_image_creates_thumbnail(monkeypatch):
     fake_client = FakeMinioClient()
 
     monkeypatch.setattr(
-        "src.worker.resize_worker.get_minio_client",
+        "worker.resize_worker.get_minio_client",
         lambda: fake_client,
     )
 
