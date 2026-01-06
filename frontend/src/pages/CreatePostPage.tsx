@@ -65,7 +65,7 @@ export default function CreatePostPage() {
         </button>
         {imagePath && (
           <div className="text-green-700 text-sm">
-            Uploaded. image_path: {imagePath}
+            Upload successful!
           </div>
         )}
       </div>

@@ -12,6 +12,11 @@ export default function CommentForm({ postId }: { postId: number }) {
     onSuccess: () => {
       setText("");
       qc.invalidateQueries({ queryKey: ["comments", postId] });
+
+      // re-fetch once more after ML likely finished
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["comments", postId] });
+      }, 1500);
     },
   });
 

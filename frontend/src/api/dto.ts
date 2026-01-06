@@ -33,6 +33,9 @@ export interface CommentReadDTO {
     user: string;
     text: string;
     created_at: string;
+    
+    sentiment?: "negative" | "neutral" | "positive";
+    sentiment_score?: number;
 }
 
 export interface PostCreateDTO {

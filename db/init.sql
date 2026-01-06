@@ -41,11 +41,14 @@ CREATE TABLE post_tag_link
 
 CREATE TABLE comment
 (
-    id         SERIAL PRIMARY KEY,
-    post_id    INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
-    "user"     TEXT      NOT NULL,             -- matches Comment.user
-    text       TEXT      NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    id               SERIAL PRIMARY KEY,
+    post_id          INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
+    "user"           TEXT      NOT NULL,
+    text             TEXT      NOT NULL,
+    created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    sentiment        TEXT,
+    sentiment_score  DOUBLE PRECISION
 );
 
 -- separate toe_rating table

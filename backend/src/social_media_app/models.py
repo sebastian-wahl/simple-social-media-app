@@ -61,6 +61,9 @@ class Comment(SQLModel, table=True):
     text: str
     created_at: datetime = Field(default_factory=utcnow, index=True)
 
+    sentiment: str | None = Field(default=None, index=True)
+    sentiment_score: float | None = None
+
 
 class ToeRating(SQLModel, table=True):
     """

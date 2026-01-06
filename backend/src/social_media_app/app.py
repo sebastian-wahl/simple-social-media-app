@@ -128,7 +128,7 @@ async def upload_image(file: UploadFile = File(...)):
 
     try:
         queue_service.publish(
-            queue_name=settings.RABBITMQ_QUEUE_NAME,
+            queue_name=settings.RABBITMQ_RESIZE_QUEUE,
             message={"image_path": image_path}
         )
         logger.info(f"Published resize task for: {image_path}")
@@ -310,6 +310,17 @@ def add_comment(
         user=payload.user,
         text=payload.text,
     )
+    try:
+        queue_service.publish(
+            queue_name=settings.RABBITMQ_SENTIMENT_QUEUE,
+            message={
+                "comment_id": comment.id,
+                "text": comment.text,
+            },
+        )
+        logger.info(f"Published sentiment task for comment {comment.id}")
+    except Exception as e:
+        logger.warning(f"Failed to publish sentiment task: {e}")
     return comment_to_dto(comment)
 
 

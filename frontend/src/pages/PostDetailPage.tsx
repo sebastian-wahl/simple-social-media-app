@@ -22,8 +22,10 @@ export default function PostDetailPage() {
   const placeholderBase =
     "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1600&auto=format&fit=crop";
   const placeholder = `${placeholderBase}&seed=${post.id}`;
-
-  const imgUrl = post.image_url || placeholder;
+  
+  const imgUrl = post.image_url
+    ? `${import.meta.env.VITE_API_BASE_URL}/images/${post.image_url}`
+    : placeholder;
 
   return (
     <div className="space-y-4">

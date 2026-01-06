@@ -6,9 +6,9 @@ export default function PostCard({ post }: { post: PostReadDTO }) {
   const created = new Date(post.created_at).toLocaleString();
   const placeholderBase = "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200&auto=format&fit=crop";
   const placeholder = `${placeholderBase}&seed=${post.id}`; 
-  const imgUrl = post.image_url 
-    ? `api/images/${post.image_url}`
-    : placeholder;
+  const imgUrl = post.image_url
+  ? `${import.meta.env.VITE_API_BASE_URL}/images/${post.image_url}`
+  : placeholder;
 
   return (
     <article className="bg-white rounded-lg shadow p-4 flex flex-col gap-3">

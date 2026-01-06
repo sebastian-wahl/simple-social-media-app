@@ -7,7 +7,7 @@ from typing import Any
 import pika
 from pika.exceptions import AMQPConnectionError
 
-from social_media_app.config import settings  # ← Geändert!
+from social_media_app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class QueueService:
 
     def __init__(self) -> None:
         """Initialize RabbitMQ connection."""
-        self.host = settings.RABBITMQ_HOST  # ← settings statt app_config
+        self.host = settings.RABBITMQ_HOST
         self.port = settings.RABBITMQ_PORT
         self.user = settings.RABBITMQ_USER
         self.password = settings.RABBITMQ_PASSWORD

@@ -80,6 +80,9 @@ class CommentReadDTO(BaseModel):
     text: str
     created_at: str
 
+    sentiment: str | None = None
+    sentiment_score: float | None = None
+
 
 # NEW: DTO for rating a post ------------------------------------------
 class ToeRatingCreateDTO(BaseModel):
@@ -158,9 +161,11 @@ def comment_to_dto(comment: Comment) -> CommentReadDTO:
     Map a Comment SQLModel instance to CommentReadDTO.
     """
     return CommentReadDTO(
-        id=comment.id,  # type: ignore[arg-type]
+        id=comment.id,
         post_id=comment.post_id,
         user=comment.user,
         text=comment.text,
         created_at=comment.created_at.isoformat(),
+        sentiment=comment.sentiment,
+        sentiment_score=comment.sentiment_score,
     )
