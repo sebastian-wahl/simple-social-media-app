@@ -8,7 +8,6 @@
 -- ============================
 DROP TABLE IF EXISTS post_tag_link CASCADE;
 DROP TABLE IF EXISTS comment CASCADE;
-DROP TABLE IF EXISTS toe_rating CASCADE;
 DROP TABLE IF EXISTS post CASCADE;
 DROP TABLE IF EXISTS tag CASCADE;
 
@@ -21,8 +20,9 @@ CREATE TABLE post
     id         SERIAL PRIMARY KEY,
     image_path TEXT      NOT NULL,
     text       TEXT      NOT NULL,
-    "user"     TEXT      NOT NULL,              -- matches Post.user
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    "user"     TEXT      NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    rating     DOUBLE PRECISION NOT NULL DEFAULT 0.0
 );
 
 CREATE TABLE tag
@@ -41,48 +41,27 @@ CREATE TABLE post_tag_link
 
 CREATE TABLE comment
 (
-    id               SERIAL PRIMARY KEY,
-    post_id          INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
-    "user"           TEXT      NOT NULL,
-    text             TEXT      NOT NULL,
-    created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    id              SERIAL PRIMARY KEY,
+    post_id         INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
+    "user"          TEXT      NOT NULL,
+    text            TEXT      NOT NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    sentiment        TEXT,
-    sentiment_score  DOUBLE PRECISION
-);
-
--- separate toe_rating table
-CREATE TABLE toe_rating
-(
-    id         SERIAL PRIMARY KEY,
-    post_id    INTEGER   NOT NULL REFERENCES post (id) ON DELETE CASCADE,
-    "user"     TEXT      NOT NULL,
-    value      INTEGER   NOT NULL CHECK (value BETWEEN 1 AND 5),
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    -- sentiment analysis
+    sentiment       TEXT,
+    sentiment_score DOUBLE PRECISION
 );
 
 -- ============================
 -- Optional test data
 -- ============================
--- CHANGED: posts no longer have toe_rating; ratings are in toe_rating.
 -- INSERT INTO post (image_path, text, "user")
 -- VALUES
---     ('test1.jpg', 'Hello World', 'alice'),
---     ('test2.jpg', 'Second post', 'bob');
---
--- INSERT INTO tag (name) VALUES ('test'), ('blue'), ('common');
---
--- INSERT INTO post_tag_link (post_id, tag_id)
--- VALUES (1, 1), (1, 2), (2, 3);
---
--- INSERT INTO toe_rating (post_id, "user", value)
+--   ('posts/example.jpg', 'Nice image', 'alice');
+
+-- INSERT INTO comment (post_id, "user", text, sentiment, sentiment_score)
 -- VALUES
---     (1, 'alice', 5),
---     (1, 'bob', 4),
---     (2, 'bob', 3);
---
--- INSERT INTO comment (post_id, "user", text)
--- VALUES (1, 'alice', 'Nice post!');
+--   (1, 'bob', 'Looks great!', 'positive', 0.98);
 
 -- ============================
 -- Done

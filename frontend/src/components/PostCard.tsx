@@ -7,8 +7,8 @@ export default function PostCard({ post }: { post: PostReadDTO }) {
   const placeholderBase = "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200&auto=format&fit=crop";
   const placeholder = `${placeholderBase}&seed=${post.id}`; 
   const imgUrl = post.image_url
-  ? `${import.meta.env.VITE_API_BASE_URL}/images/${post.image_url}`
-  : placeholder;
+    ? `${import.meta.env.VITE_API_BASE_URL}/images/${post.image_url}`
+    : placeholder;
 
   return (
     <article className="bg-white rounded-lg shadow p-4 flex flex-col gap-3">
@@ -21,7 +21,10 @@ export default function PostCard({ post }: { post: PostReadDTO }) {
       </Link> 
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500">{created}</div>
-        <RatingStars value={post.toe_rating} readOnly size="sm" />
+        <RatingStars value={post.rating} readOnly size="sm" />
+        <span className="text-xs text-gray-600">
+          {post.rating.toFixed(2)}
+        </span>
       </div>
       <h3 className="text-lg font-semibold">{post.text}</h3>
       <div className="text-sm text-gray-600">by {post.user}</div>

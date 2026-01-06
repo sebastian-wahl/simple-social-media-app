@@ -22,39 +22,56 @@ export default function PostDetailPage() {
   const placeholderBase =
     "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1600&auto=format&fit=crop";
   const placeholder = `${placeholderBase}&seed=${post.id}`;
-  
+
   const imgUrl = post.image_url
     ? `${import.meta.env.VITE_API_BASE_URL}/images/${post.image_url}`
     : placeholder;
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded shadow p-4">
-        <img src={imgUrl} alt={post.text} className="w-full rounded mb-3" />
-        <div className="flex justify-between items-center">
+  <div className="space-y-4">
+    {/* IMAGE */}
+    <div className="bg-white rounded shadow p-4">
+      <img
+        src={imgUrl}
+        alt={post.text}
+        className="w-full rounded mb-4"
+      />
+
+      <div className="flex justify-between items-start gap-4">
+        {/* LEFT */}
+        <div className="space-y-1">
           <h2 className="text-xl font-semibold">{post.text}</h2>
-          <RatingStars value={post.toe_rating} readOnly />
+          <div className="text-sm text-gray-500">
+            {new Date(post.created_at).toLocaleString()} — by {post.user}
+          </div>
+          <div className="mt-2 flex gap-2 flex-wrap">
+            {post.tags.map((t) => (
+              <span
+                key={t}
+                className="text-xs bg-gray-100 border px-2 py-0.5 rounded"
+              >
+                #{t}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="text-sm text-gray-500">
-          {new Date(post.created_at).toLocaleString()} — by {post.user}
-        </div>
-        <div className="mt-2 flex gap-2 flex-wrap">
-          {post.tags.map((t) => (
-            <span
-              key={t}
-              className="text-xs bg-gray-100 border px-2 py-0.5 rounded"
-            >
-              #{t}
-            </span>
-          ))}
+
+        {/* RIGHT */}
+        <div className="flex flex-col items-end">
+          <RatingStars value={post.rating} readOnly />
+          <div className="text-sm text-gray-600 mt-1">
+            {post.rating.toFixed(2)} / 5
+          </div>
         </div>
       </div>
-
-      <section className="space-y-3">
-        <h3 className="text-lg font-semibold">Comments</h3>
-        <CommentForm postId={postId} />
-        <CommentList postId={postId} />
-      </section>
     </div>
-  );
+
+    {/* COMMENTS */}
+    <section className="space-y-3">
+      <h3 className="text-lg font-semibold">Comments</h3>
+      <CommentForm postId={postId} />
+      <CommentList postId={postId} />
+    </section>
+  </div>
+);
 }

@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 from sqlmodel import Session, create_engine, select
 from transformers import pipeline
 
-from social_media_app.models import Comment
+from social_media_app.models import Comment, Post
+from sqlmodel import select
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -56,19 +57,54 @@ def update_comment_sentiment(
     comment_id: int,
     sentiment: str,
     score: float,
-) -> None:
+) -> int | None:
     comment = session.exec(
         select(Comment).where(Comment.id == comment_id)
     ).first()
 
     if not comment:
         logger.warning("Comment %s not found, skipping", comment_id)
-        return
+        return None
 
     comment.sentiment = sentiment
     comment.sentiment_score = score
     session.add(comment)
     session.commit()
+
+    return comment.post_id
+
+SENTIMENT_MAP = {
+    "negative": -1.0,
+    "neutral": 0.0,
+    "positive": 1.0,
+}
+
+def recompute_post_rating(session: Session, post_id: int) -> None:
+    comments = session.exec(
+        select(Comment).where(Comment.post_id == post_id)
+    ).all()
+
+    if not comments:
+        rating = 0.0
+    else:
+        values = [
+            SENTIMENT_MAP[c.sentiment] * c.sentiment_score
+            for c in comments
+            if c.sentiment in SENTIMENT_MAP and c.sentiment_score is not None
+        ]
+
+        if not values:
+            rating = 0.0
+        else:
+            avg = sum(values) / len(values)
+            rating = ((avg + 1) / 2) * 4 + 1
+            rating = max(1.0, min(5.0, rating))
+
+    post = session.get(Post, post_id)
+    if post:
+        post.rating = round(rating, 2)
+        session.add(post)
+        session.commit()
 
 
 # -----------------------------------------------------------------------------
@@ -88,12 +124,15 @@ def callback(ch, method, properties, body):
         sentiment, score = analyze_sentiment(text)
 
         with Session(engine) as session:
-            update_comment_sentiment(
+            post_id = update_comment_sentiment(
                 session,
                 comment_id=comment_id,
                 sentiment=sentiment,
                 score=score,
             )
+        
+            if post_id is not None:
+                recompute_post_rating(session, post_id)
 
         logger.info(
             "Updated comment %s → %s (%.3f)",
