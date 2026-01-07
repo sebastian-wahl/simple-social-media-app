@@ -6,7 +6,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlalchemy.pool import StaticPool
 
 from worker import sentiment_worker
-from social_media_app.models import Comment
+from social_media_app.models import Comment, Post
 
 
 @pytest.fixture
@@ -22,7 +22,12 @@ def session():
 
 
 def test_update_comment_sentiment(session):
-    comment = Comment(post_id=1, user="bob", text="Nice!")
+    post = Post(image_path="x.jpg", text="test", user="alice")
+    session.add(post)
+    session.commit()
+    session.refresh(post)
+
+    comment = Comment(post_id=post.id, user="bob", text="Nice!")
     session.add(comment)
     session.commit()
     session.refresh(comment)
@@ -30,31 +35,34 @@ def test_update_comment_sentiment(session):
     sentiment_worker.update_comment_sentiment(
         session,
         comment_id=comment.id,
-        sentiment="POSITIVE",
-        score=0.99,
+        sentiment="positive",
+        score=0.9,
     )
 
     session.refresh(comment)
-    assert comment.sentiment == "POSITIVE"
-    assert comment.sentiment_score == 0.99
+    assert comment.sentiment == "positive"
+    assert comment.sentiment_score == 0.9
 
 
-def test_callback_processes_message(monkeypatch, session):
-    # Fake model
+def test_callback_updates_post_rating(monkeypatch, session):
     monkeypatch.setattr(
         sentiment_worker,
         "analyze_sentiment",
-        lambda text: ("NEGATIVE", 0.12),
+        lambda text: ("positive", 1.0),
     )
 
-    # Fake DB engine
     monkeypatch.setattr(
         sentiment_worker,
         "engine",
         session.get_bind(),
     )
 
-    comment = Comment(post_id=1, user="alice", text="Bad post")
+    post = Post(image_path="x.jpg", text="post", user="alice")
+    session.add(post)
+    session.commit()
+    session.refresh(post)
+
+    comment = Comment(post_id=post.id, user="bob", text="Great!")
     session.add(comment)
     session.commit()
     session.refresh(comment)
@@ -73,5 +81,7 @@ def test_callback_processes_message(monkeypatch, session):
     sentiment_worker.callback(ch, method, None, body)
 
     session.refresh(comment)
-    assert comment.sentiment == "NEGATIVE"
-    assert comment.sentiment_score == 0.12
+    session.refresh(post)
+
+    assert comment.sentiment == "positive"
+    assert post.rating == 5.0
