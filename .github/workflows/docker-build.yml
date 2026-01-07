@@ -10,8 +10,8 @@ permissions:
   packages: write
 
 jobs:
-  backend:
-    name: Build & Push Backend Image
+  backend-image:
+    name: Build & Push Backend Image (API + Workers)
     runs-on: ubuntu-latest
 
     steps:
@@ -33,51 +33,3 @@ jobs:
       - name: Push backend image
         run: |
           docker push ghcr.io/${{ github.repository }}/backend:latest
-
-  resize-worker:
-    name: Build & Push Resize Worker Image
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build worker image
-        run: |
-          docker build \
-            -t ghcr.io/${{ github.repository }}/resize-worker:latest \
-            -f backend/src/worker/Dockerfile .
-
-      - name: Push worker image
-        run: |
-          docker push ghcr.io/${{ github.repository }}/resize-worker:latest
-  
-  sentiment-worker:
-    name: Build & Push Sentiment Worker Image
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build sentiment worker image
-        run: |
-          docker build \
-            -t ghcr.io/${{ github.repository }}/sentiment-worker:latest \
-            -f backend/src/worker/sentiment_worker.Dockerfile .
-
-      - name: Push sentiment worker image
-        run: |
-          docker push ghcr.io/${{ github.repository }}/sentiment-worker:latest
