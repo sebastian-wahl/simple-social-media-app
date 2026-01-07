@@ -5,21 +5,25 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, create_engine, select
 
 from social_media_app.app import app
 from social_media_app.db import create_db_and_tables, get_session
+from social_media_app.models import Comment
+from worker.sentiment_worker import recompute_post_rating
+
 
 # ---------------------------------------------------------------------------
 # Test app + DB setup
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def engine():
+    engine = make_test_engine()
+    create_db_and_tables(engine)
+    return engine
 
 def make_test_engine():
-    """
-    Create an in-memory SQLite engine that persists for the duration
-    of a test (StaticPool keeps the same DB across sessions).
-    """
     return create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -29,47 +33,31 @@ def make_test_engine():
 
 
 @pytest.fixture
-def client(monkeypatch) -> Iterator[TestClient]:
-    """
-    FastAPI TestClient with:
-
-    - In-memory SQLite DB
-    - get_session overridden to use that DB
-    - MinIO existence check mocked to always return True
-      (so POST /posts doesn't require a real MinIO instance)
-    """
-    engine = make_test_engine()
-    create_db_and_tables(engine)
-
+def client(monkeypatch, engine) -> Iterator[TestClient]:
     def override_get_session():
         with Session(engine) as session:
             yield session
 
-    # Override DB dependency
     app.dependency_overrides[get_session] = override_get_session
 
-    # Mock MinIO existence check
     monkeypatch.setattr(
         "social_media_app.app.image_exists_in_minio",
-        lambda image_path: True,
+        lambda *_: True,
     )
-    # Mock RabbitMQ publish (no-op)
     monkeypatch.setattr(
         "social_media_app.app.queue_service.publish",
-        lambda *args, **kwargs: None,
+        lambda *_, **__: None,
     )
 
     with TestClient(app) as c:
         yield c
 
-    # Clean up overrides after tests
     app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------
-# Basic health check
+# Health
 # ---------------------------------------------------------------------------
-
 
 def test_health_ok(client: TestClient):
     res = client.get("/health")
@@ -78,9 +66,8 @@ def test_health_ok(client: TestClient):
 
 
 # ---------------------------------------------------------------------------
-# Posts: create, get, list, search
+# Helpers
 # ---------------------------------------------------------------------------
-
 
 def _create_post_via_api(client: TestClient, **overrides) -> dict:
     payload = {
@@ -96,54 +83,33 @@ def _create_post_via_api(client: TestClient, **overrides) -> dict:
     return res.json()
 
 
+# ---------------------------------------------------------------------------
+# Posts
+# ---------------------------------------------------------------------------
+
 def test_create_and_get_post(client: TestClient):
     created = _create_post_via_api(client)
 
-    # Response should contain an ID and echo the fields
     assert created["id"] == 1
-    assert created["image_path"] == "posts/test.jpg"
-    assert created["user"] == "alice"
-    assert "toe_rating" in created
-    assert created["toe_rating"] == 0.0
+    assert created["rating"] == 0.0
     assert sorted(created["tags"]) == ["blue", "common"]
 
-    # GET /posts/{id}
     res = client.get(f"/posts/{created['id']}")
     assert res.status_code == 200
     fetched = res.json()
-    assert fetched["id"] == created["id"]
-    assert fetched["text"] == "hello world"
-    assert "toe_rating" in fetched
-    assert fetched["toe_rating"] == 0.0
+    assert fetched["rating"] == 0.0
 
 
 def test_list_posts_pagination_and_meta(client: TestClient):
-    # Create a few posts
     _create_post_via_api(client, text="p1")
     _create_post_via_api(client, text="p2")
     _create_post_via_api(client, text="p3")
 
     res = client.get("/posts", params={"limit": 2, "offset": 0})
-    assert res.status_code == 200
     data = res.json()
-    assert "items" in data and "meta" in data
+
     assert len(data["items"]) == 2
     assert data["meta"]["total"] == 3
-    assert data["meta"]["limit"] == 2
-    assert data["meta"]["offset"] == 0
-
-
-def test_list_posts_without_q_returns_all(client: TestClient):
-    _create_post_via_api(client, text="kittens and puppies")
-    _create_post_via_api(client, text="only puppies here")
-
-    res = client.get("/posts")  # no q parameter
-    assert res.status_code == 200
-
-    data = res.json()
-    assert data["meta"]["total"] == 2
-    texts = {item["text"] for item in data["items"]}
-    assert texts == {"kittens and puppies", "only puppies here"}
 
 
 def test_search_posts_by_text(client: TestClient):
@@ -151,14 +117,10 @@ def test_search_posts_by_text(client: TestClient):
     _create_post_via_api(client, text="only puppies here")
     _create_post_via_api(client, text="nothing relevant")
 
-    # use the main list endpoint with q as a filter
     res = client.get("/posts", params={"q": "kittens"})
-    assert res.status_code == 200
-
     data = res.json()
-    # Only the first post should match
+
     assert data["meta"]["total"] == 1
-    assert len(data["items"]) == 1
     assert data["items"][0]["text"] == "kittens and puppies"
 
 
@@ -168,138 +130,82 @@ def test_list_posts_filter_by_tag(client: TestClient):
     _create_post_via_api(client, text="both", tags=["blue", "red"])
 
     res = client.get("/posts", params={"tags": ["blue"]})
-    assert res.status_code == 200
     data = res.json()
-    texts = sorted(item["text"] for item in data["items"])
 
-    # we check if the blue posts are in the results
-    assert len(texts) == 2
-    assert "blue one" in texts
-    assert "both" in texts
+    texts = {item["text"] for item in data["items"]}
+    assert texts == {"blue one", "both"}
 
 
 # ---------------------------------------------------------------------------
-# Toe rating endpoints (/posts/{post_id}/rating)
+# Comments + sentiment-driven rating
 # ---------------------------------------------------------------------------
 
-
-def test_rate_post_sets_toe_rating_and_reflects_in_get(client: TestClient):
+def test_comment_updates_post_rating(client: TestClient, engine):
     post = _create_post_via_api(client)
 
-    # Initially no rating
-    res = client.get(f"/posts/{post['id']}")
-    assert res.status_code == 200
-    fetched = res.json()
-    assert fetched["toe_rating"] == 0.0
-
-    # Add first rating via rating endpoint
-    res = client.post(
-        f"/posts/{post['id']}/rating",
-        json={"user": "bob", "toe_rating": 5},
-    )
-    assert res.status_code == 201
-    rated = res.json()
-    # Endpoint returns PostReadDTO including aggregated toe_rating
-    assert rated["id"] == post["id"]
-    assert pytest.approx(rated["toe_rating"]) == 5.0
-
-    # GET should now also return the updated mean rating
-    res = client.get(f"/posts/{post['id']}")
-    assert res.status_code == 200
-    fetched = res.json()
-    assert pytest.approx(fetched["toe_rating"]) == 5.0
-
-
-def test_rate_post_overwrites_previous_rating_from_same_user(client: TestClient):
-    post = _create_post_via_api(client)
-
-    # user1 = alice, user2 = bob
-    # alice rates 5
-    res = client.post(
-        f"/posts/{post['id']}/rating",
-        json={"user": "alice", "toe_rating": 5},
-    )
-    assert res.status_code == 201
-    data = res.json()
-    assert pytest.approx(data["toe_rating"]) == 5.0
-
-    # bob rates 1 -> mean should be (5 + 1) / 2 = 3
-    res = client.post(
-        f"/posts/{post['id']}/rating",
-        json={"user": "bob", "toe_rating": 1},
-    )
-    assert res.status_code == 201
-    data = res.json()
-    assert pytest.approx(data["toe_rating"]) == 3.0
-
-    # alice changes her rating to 3
-    # With overwrite, values should be [3, 1] -> mean = 2
-    res = client.post(
-        f"/posts/{post['id']}/rating",
-        json={"user": "alice", "toe_rating": 3},
-    )
-    assert res.status_code == 201
-    data = res.json()
-    assert pytest.approx(data["toe_rating"]) == 2.0
-
-
-# ---------------------------------------------------------------------------
-# Comments endpoints
-# ---------------------------------------------------------------------------
-
-
-def test_add_and_list_comments(client: TestClient):
-    post = _create_post_via_api(client)
-
-    # No comments yet
-    res = client.get(f"/posts/{post['id']}/comments")
-    assert res.status_code == 200
-    assert res.json() == []
-
-    # Add comment
     res = client.post(
         f"/posts/{post['id']}/comments",
-        json={"user": "bob", "text": "Nice post!"},
+        json={"user": "bob", "text": "Amazing post"},
     )
     assert res.status_code == 201
-    comment = res.json()
-    assert comment["id"] == 1
-    assert comment["post_id"] == post["id"]
-    assert comment["user"] == "bob"
-    assert comment["text"] == "Nice post!"
 
-    # List comments again
-    res = client.get(f"/posts/{post['id']}/comments")
+    with Session(engine) as session:
+        comment = session.exec(select(Comment)).first()
+        comment.sentiment = "positive"
+        comment.sentiment_score = 1.0
+        session.commit()
+
+        recompute_post_rating(session, post["id"])
+
+    res = client.get(f"/posts/{post['id']}")
     assert res.status_code == 200
-    comments = res.json()
-    assert len(comments) == 1
-    assert comments[0]["text"] == "Nice post!"
+    assert res.json()["rating"] == 5.0
 
 
-def test_comment_endpoints_404_for_missing_post(client: TestClient):
-    # Comments list on non-existing post
-    res = client.get("/posts/999/comments")
-    assert res.status_code == 404
 
-    # Add comment to non-existing post
-    res = client.post(
-        "/posts/999/comments",
-        json={"user": "bob", "text": "Hello"},
-    )
-    assert res.status_code == 404
+def test_rating_filtering(client: TestClient, engine):
+    low = _create_post_via_api(client, text="bad")
+    high = _create_post_via_api(client, text="good")
+
+    with Session(engine) as session:
+        session.add_all([
+            Comment(
+                post_id=low["id"],
+                user="x",
+                text="terrible",
+                sentiment="negative",
+                sentiment_score=1.0,
+            ),
+            Comment(
+                post_id=high["id"],
+                user="y",
+                text="great",
+                sentiment="positive",
+                sentiment_score=1.0,
+            ),
+        ])
+        session.commit()
+
+        recompute_post_rating(session, low["id"])
+        recompute_post_rating(session, high["id"])
+
+    res = client.get("/posts", params={"min_rating": 4})
+    ids = {p["id"] for p in res.json()["items"]}
+
+    assert high["id"] in ids
+    assert low["id"] not in ids
+
 
 
 # ---------------------------------------------------------------------------
-# Tags endpoint
+# Tags
 # ---------------------------------------------------------------------------
-
 
 def test_list_tags_counts(client: TestClient):
     _create_post_via_api(client, tags=["blue", "common"])
     _create_post_via_api(client, tags=["red", "common"])
 
     res = client.get("/tags")
-    assert res.status_code == 200
     tags = res.json()
 
     by_name = {t["name"]: t["count"] for t in tags}

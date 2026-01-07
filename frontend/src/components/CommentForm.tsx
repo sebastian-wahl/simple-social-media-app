@@ -11,7 +11,18 @@ export default function CommentForm({ postId }: { postId: number }) {
     mutationFn: () => addComment(postId, { user, text }),
     onSuccess: () => {
       setText("");
+
+      // Immediate refresh
       qc.invalidateQueries({ queryKey: ["comments", postId] });
+      qc.invalidateQueries({ queryKey: ["post", postId] });
+      qc.invalidateQueries({ queryKey: ["posts"] });
+
+      // Re-fetch once more after ML likely finished
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["comments", postId] });
+        qc.invalidateQueries({ queryKey: ["post", postId] });
+        qc.invalidateQueries({ queryKey: ["posts"] });
+      }, 1500);
     },
   });
 

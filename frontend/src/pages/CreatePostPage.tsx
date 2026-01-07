@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPost, uploadImage } from "../api/posts";
 import { useState } from "react";
-import RatingStars from "../components/RatingStars";
 import { useNavigate } from "react-router-dom";
 
 export default function CreatePostPage() {
@@ -9,7 +8,6 @@ export default function CreatePostPage() {
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [user, setUser] = useState("");
   const [text, setText] = useState("");
-  const [rating, setRating] = useState(3);
   const [tags, setTags] = useState("");
 
   const navigate = useNavigate();
@@ -31,7 +29,6 @@ export default function CreatePostPage() {
         image_path: imagePath,
         text,
         user,
-        toe_rating: rating,
         tags: tags
           .split(",")
           .map((t) => t.trim())
@@ -65,7 +62,7 @@ export default function CreatePostPage() {
         </button>
         {imagePath && (
           <div className="text-green-700 text-sm">
-            Uploaded. image_path: {imagePath}
+            Upload successful!
           </div>
         )}
       </div>
@@ -86,11 +83,6 @@ export default function CreatePostPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-      </div>
-
-      <div className="space-y-2">
-        <label className="block text-sm">Toe Rating</label>
-        <RatingStars value={rating} onChange={setRating} />
       </div>
 
       <div className="space-y-2">

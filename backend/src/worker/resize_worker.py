@@ -12,7 +12,7 @@ load_dotenv()
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "rabbitmq")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "rabbitmq")  # ← War "minioadmin"?
-RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE_NAME", "image_resize")  # ← Gleicher Name wie im Backend!
+RABBITMQ_QUEUE = os.getenv("RABBITMQ_RESIZE_QUEUE", "image_resize")  # ← Gleicher Name wie im Backend!
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
 MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")

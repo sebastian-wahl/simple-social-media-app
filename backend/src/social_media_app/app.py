@@ -23,7 +23,6 @@ from starlette.responses import StreamingResponse
 from .db import (
     PostFilter,
     add_comment_db,
-    add_or_update_rating_db,
     create_db_and_tables,
     create_post_db,
     get_post_db,
@@ -42,7 +41,6 @@ from .dtos import (
     PostPageDTO,
     PostReadDTO,
     TagReadDTO,
-    ToeRatingCreateDTO,
     UploadImageResponseDTO,
     comment_to_dto,
     post_to_dto,
@@ -128,7 +126,7 @@ async def upload_image(file: UploadFile = File(...)):
 
     try:
         queue_service.publish(
-            queue_name=settings.RABBITMQ_QUEUE_NAME,
+            queue_name=settings.RABBITMQ_RESIZE_QUEUE,
             message={"image_path": image_path}
         )
         logger.info(f"Published resize task for: {image_path}")
@@ -195,7 +193,7 @@ def list_posts(
     - Validates query params into PostFilterDTO
     - Builds a PostFilter (DB-layer filter object)
     - DB function list_posts_db() does all query logic (search, tags, rating)
-      Rating logic is based on mean ToeRating.value.
+      Rating is derived from comment sentiment and cached on Post.rating.
     """
     f = PostFilter(
         q=filter_dto.q,
@@ -225,41 +223,7 @@ def get_post(post_id: int, session: Session = Depends(get_session)):
 # Routes: Rating endpoint
 # =============================================================================
 
-
-@app.post(
-    "/posts/{post_id}/rating",
-    response_model=PostReadDTO,
-    status_code=status.HTTP_201_CREATED,
-)
-def rate_post(
-    post_id: int,
-    payload: ToeRatingCreateDTO,
-    session: Session = Depends(get_session),
-):
-    """
-    Rate a post with a toe rating (1–5).
-
-    CHANGED: If the same user rates the same post again, the previous rating
-    is overwritten instead of creating a new one.
-
-    Returns the updated PostReadDTO which includes the new mean toe_rating.
-    """
-    post = get_post_db(session, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    add_or_update_rating_db(
-        session,
-        post_id=post_id,
-        user=payload.user,
-        value=payload.toe_rating,
-    )
-
-    # Refresh post so that post.ratings reflects the (possibly updated) rating
-    session.refresh(post)
-
-    return post_to_dto(post)
-
+# 
 
 # =============================================================================
 # Routes: Tags
@@ -310,6 +274,17 @@ def add_comment(
         user=payload.user,
         text=payload.text,
     )
+    try:
+        queue_service.publish(
+            queue_name=settings.RABBITMQ_SENTIMENT_QUEUE,
+            message={
+                "comment_id": comment.id,
+                "text": comment.text,
+            },
+        )
+        logger.info(f"Published sentiment task for comment {comment.id}")
+    except Exception as e:
+        logger.warning(f"Failed to publish sentiment task: {e}")
     return comment_to_dto(comment)
 
 

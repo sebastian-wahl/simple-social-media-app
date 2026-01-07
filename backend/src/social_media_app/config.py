@@ -25,7 +25,8 @@ class Settings:
     RABBITMQ_PORT: int = int(os.getenv("RABBITMQ_PORT", "5672"))
     RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "rabbitmq")
     RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "rabbitmq")
-    RABBITMQ_QUEUE_NAME: str = os.getenv("RABBITMQ_QUEUE_NAME", "image_resize_queue")
+    RABBITMQ_RESIZE_QUEUE: str = os.getenv("RABBITMQ_RESIZE_QUEUE", "image_resize_queue")
+    RABBITMQ_SENTIMENT_QUEUE: str = os.getenv("RABBITMQ_SENTIMENT_QUEUE","sentiment_queue")
 
 
 settings = Settings()
