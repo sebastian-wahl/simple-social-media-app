@@ -9,7 +9,6 @@ from sqlmodel import Session, create_engine, select
 from transformers import pipeline
 
 from social_media_app.models import Comment, Post
-from sqlmodel import select
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -26,27 +25,36 @@ RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "rabbitmq")
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_SENTIMENT_QUEUE", "sentiment_queue")
 
 # -----------------------------------------------------------------------------
-# Model (loaded ONCE)
+# Lazy singletons (IMPORTANT CHANGE)
 # -----------------------------------------------------------------------------
-logger.info("Loading sentiment model...")
-classifier = pipeline(
-    "sentiment-analysis",
-    model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-    device=-1,  # FORCE CPU
-)
-logger.info("Sentiment model loaded")
+_classifier = None
+_engine = None
 
-# -----------------------------------------------------------------------------
-# DB
-# -----------------------------------------------------------------------------
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
+def get_classifier():
+    global _classifier
+    if _classifier is None:
+        logger.info("Loading sentiment model...")
+        _classifier = pipeline(
+            "sentiment-analysis",
+            model="cardiffnlp/twitter-roberta-base-sentiment-latest",
+            device=-1,
+        )
+        logger.info("Sentiment model loaded")
+    return _classifier
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL is required for sentiment worker")
+        _engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    return _engine
 
 
 def analyze_sentiment(text: str) -> Tuple[str, float]:
-    """
-    Run sentiment analysis on a text.
-    Returns: (label, score)
-    """
+    classifier = get_classifier()
     result = classifier(text)[0]
     return result["label"], float(result["score"])
 
@@ -73,11 +81,13 @@ def update_comment_sentiment(
 
     return comment.post_id
 
+
 SENTIMENT_MAP = {
     "negative": -1.0,
     "neutral": 0.0,
     "positive": 1.0,
 }
+
 
 def recompute_post_rating(session: Session, post_id: int) -> None:
     comments = session.exec(
@@ -123,6 +133,7 @@ def callback(ch, method, properties, body):
 
         sentiment, score = analyze_sentiment(text)
 
+        engine = get_engine()
         with Session(engine) as session:
             post_id = update_comment_sentiment(
                 session,
@@ -130,7 +141,7 @@ def callback(ch, method, properties, body):
                 sentiment=sentiment,
                 score=score,
             )
-        
+
             if post_id is not None:
                 recompute_post_rating(session, post_id)
 
@@ -166,11 +177,7 @@ def main():
 
     channel = connection.channel()
     channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
-
-    channel.basic_consume(
-        queue=RABBITMQ_QUEUE,
-        on_message_callback=callback,
-    )
+    channel.basic_consume(queue=RABBITMQ_QUEUE, on_message_callback=callback)
 
     logger.info("Waiting for messages on queue: %s", RABBITMQ_QUEUE)
     channel.start_consuming()
