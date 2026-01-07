@@ -45,16 +45,19 @@ def test_update_comment_sentiment(session):
 
 
 def test_callback_updates_post_rating(monkeypatch, session):
+    # Mock sentiment analysis (no ML in tests)
     monkeypatch.setattr(
         sentiment_worker,
         "analyze_sentiment",
         lambda text: ("positive", 1.0),
     )
 
+    # 🔑 THIS IS THE IMPORTANT FIX:
+    # Patch get_engine(), not a non-existent `engine`
     monkeypatch.setattr(
         sentiment_worker,
-        "engine",
-        session.get_bind(),
+        "get_engine",
+        lambda: session.get_bind(),
     )
 
     post = Post(image_path="x.jpg", text="post", user="alice")
