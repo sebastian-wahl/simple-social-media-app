@@ -13,45 +13,98 @@ This repository contains both backend and frontend code, plus a Docker-based loc
 ## Project Structure
 
 ```
-project-root/
-├─ .github/workflows        # all workflows in here
-├─ .env                     # All environment variables live here
-├─ .env.template            # Example configuration
-├─ docker-compose.yml       # Local stack (API + Postgres + MinIO)
+============================================================
+simple-social-media-app/
+├─ .github/
+│  └─ workflows/
+│     ├─ ci.yml
+│     └─ docker-build.yml
+├─ README.md
 
 ├─ backend/
 │  ├─ Dockerfile
+│  ├─ openapi.json
+│  ├─ package-lock.json
+│  ├─ pyproject.toml
 │  ├─ requirements.txt
-│  ├─ wait-for-services.sh
+│  ├─ ruff.toml
 │  ├─ src/
-│  │   ├─ social_media_app/
-│  │   │   ├─ app.py
-│  │   │   ├─ config.py
-│  │   │   ├─ db.py
-│  │   │   ├─ dtos.py
-│  │   │   ├─ main.py
-│  │   │   ├─ minio_db.py
-│  │   │   └─ models.py
-│  │   └─ worker/ 
-│  │       ├─ Dockerfile
-│  │       ├─ requirements.txt
-│  │       └─ resize_worker.py
-│  └─ tests/
-│      ├─ test_api.py
-│      ├─ test_db.py
-│      └─ test_minio_db.py
-
+│  │  ├─ social_media_app/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ app.py
+│  │  │  ├─ config.py
+│  │  │  ├─ db.py
+│  │  │  ├─ dtos.py
+│  │  │  ├─ generate_openapi.py
+│  │  │  ├─ main.py
+│  │  │  ├─ minio_db.py
+│  │  │  ├─ models.py
+│  │  │  └─ queue.py
+│  │  └─ worker/
+│  │     ├─ __init__.py
+│  │     ├─ resize_worker.py
+│  │     └─ sentiment_worker.py
+│  ├─ tests/
+│  │  ├─ __init__.py
+│  │  ├─ test_api.py
+│  │  ├─ test_db.py
+│  │  └─ test_minio_db.py
+│  ├─ wait-for-services.sh
+│  └─ worker_tests/
+│     ├─ test_resize_worker.py
+│     └─ test_sentiment_worker.py
 
 ├─ db/
-│  ├─ init.sql
-│  ├─ postgres-data/
-│  └─ minio-data/
+
+├─ docker-compose.yml
 
 ├─ frontend/
-│  ├─ public/
-│  ├─ src/
+│  ├─ Dockerfile
+│  ├─ README.md
+│  ├─ eslint.config.js
+│  ├─ index.html
+│  ├─ nginx.conf
 │  ├─ package.json
+│  ├─ pic/
+│  │  └─ logo.png
+│  ├─ postcss.config.cjs
+│  ├─ public/
+│  │  └─ vite.svg
+│  ├─ src/
+│  │  ├─ App.css
+│  │  ├─ App.tsx
+│  │  ├─ ToDo.txt
+│  │  ├─ api/
+│  │  │  ├─ client.ts
+│  │  │  ├─ dto.ts
+│  │  │  ├─ posts.ts
+│  │  │  └─ tags.ts
+│  │  ├─ assets/
+│  │  │  └─ react.svg
+│  │  ├─ components/
+│  │  │  ├─ CommentForm.tsx
+│  │  │  ├─ CommentList.tsx
+│  │  │  ├─ PostCard.tsx
+│  │  │  ├─ RatingStars.tsx
+│  │  │  └─ TagFilter.tsx
+│  │  ├─ index.css
+│  │  ├─ main.tsx
+│  │  ├─ pages/
+│  │  │  ├─ CreatePostPage.tsx
+│  │  │  ├─ FeedPage.tsx
+│  │  │  └─ PostDetailPage.tsx
+│  │  ├─ styles/
+│  │  │  └─ index.css
+│  │  └─ vite-env.d.ts
+│  ├─ tailwind.config.cjs
+│  ├─ tsconfig.app.json
+│  ├─ tsconfig.json
+│  ├─ tsconfig.node.json
 │  └─ vite.config.ts
+
+├─ proxy/
+│  ├─ Dockerfile
+│  └─ nginx.conf
 ```
 
 ## Environment Configuration
